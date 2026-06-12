@@ -39,6 +39,13 @@
 
 ## บันทึกรายวัน
 
+### 2026-06-13 — ข้อความบอตยกระดับเป็น Flex Message ✅ (impeccable)
+- **`src/lib/line/flex.ts`** — builder การ์ดตามแบรนด์: ใบเสร็จลา (header เขียว + rows + pill สถานะ), รายการสถานะ (header น้ำเงิน + pill สีตามสถานะ), info/coming-soon/contact/welcome (header ไอคอนสี + ปุ่ม CTA), map สีสถานะ 7 แบบ
+- แทน `textMsg` ทั้งหมดใน webhook: postback (ลา=การ์ด+ปุ่ม, สถานะ=รายการจริง, OT/ลงเวลา/เอกสาร=coming-soon, ติดต่อ=contact), follow/ผูกบัญชี=welcome; และ push ใบเสร็จตอน submit LIFF
+- **บั๊กที่เจอ:** `gravity` ใช้กับ box ไม่ได้ (เฉพาะ text/icon) → LINE 400 → เปลี่ยนเป็น `justifyContent`; กำหนด `flex` ชัดเจนกัน alignment เพี้ยน
+- verify: `scripts/preview-flex.mjs` push การ์ดตัวอย่าง 5 ใบเข้าไลน์จริง → HTTP 200 + Pong อนุมัติ → deploy
+- ค่าคงที่: ใบเสร็จ/สถานะ size mega, info/contact size kilo
+
 ### 2026-06-12 — LIFF ฟอร์มลา: redesign พรีเมียม ✅ (impeccable `delight`)
 - Header อบอุ่น: avatar gradient (ตัวย่อชื่อ) + ทักทาย "สวัสดีคุณ…" + รหัสพนักงาน
 - การ์ดประเภทลา: ไอคอน tile สีรายประเภท (annual=ดวงอาทิตย์, sick=หัวใจ, personal=คน, maternity=เด็ก, military=โล่, other=จุด) ระบายสีตาม `leave_types.color` ผ่าน `--c` + color-mix; การ์ดที่เลือก = ขอบสี + tint + check badge + ยกตัว
