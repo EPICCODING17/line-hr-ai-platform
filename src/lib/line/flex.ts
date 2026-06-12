@@ -281,6 +281,80 @@ export function contactFlex(): LineMessage {
   return flex("ติดต่อฝ่ายบุคคล (HR)", bubble(body));
 }
 
+/** Approval request sent to an approver (manager/HR) with action buttons. */
+export function approvalRequestFlex(p: {
+  requestId: string; employeeName: string; typeName: string;
+  range: string; days: number | string; reason?: string | null; requestNo: string;
+}): LineMessage {
+  const detail = [
+    row("พนักงาน", p.employeeName, { strong: true }),
+    row("ประเภท", p.typeName),
+    row("วันที่", p.range),
+    row("จำนวน", `${p.days} วันทำงาน`),
+    ...(p.reason ? [row("เหตุผล", p.reason)] : []),
+    { type: "separator", color: BORDER },
+    row("เลขที่", p.requestNo),
+  ];
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: "#e8920c", paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: "📋", size: "lg", align: "center" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: "คำขอลารออนุมัติ", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: "กรุณาพิจารณาคำขอด้านล่าง", color: "#fff4e0", size: "xs" },
+          ] },
+        ],
+      },
+      { type: "box", layout: "vertical", paddingAll: "18px", spacing: "md", contents: detail },
+    ],
+  };
+  const footer = {
+    type: "box", layout: "horizontal", spacing: "sm", paddingAll: "16px", paddingTop: "0px",
+    contents: [
+      { type: "button", style: "secondary", height: "sm", action: { type: "postback", label: "ปฏิเสธ", data: `reject:${p.requestId}`, displayText: "❌ ปฏิเสธคำขอลา" } },
+      { type: "button", style: "primary", color: "#05be8a", height: "sm", action: { type: "postback", label: "อนุมัติ", data: `approve:${p.requestId}`, displayText: "✅ อนุมัติคำขอลา" } },
+    ],
+  };
+  return flex(`คำขอลารออนุมัติ — ${p.employeeName}`, bubble(body, { footer, size: "mega" }));
+}
+
+/** Approval result sent to the employee. */
+export function approvalResultFlex(p: {
+  approved: boolean; typeName: string; range: string; days: number | string;
+  requestNo: string; reason?: string | null; byName?: string | null;
+}): LineMessage {
+  const color = p.approved ? "#05be8a" : "#ef5350";
+  const detail = [
+    row("ประเภท", p.typeName),
+    row("วันที่", p.range),
+    row("จำนวน", `${p.days} วันทำงาน`),
+    ...(p.byName ? [row(p.approved ? "ผู้อนุมัติ" : "ผู้พิจารณา", p.byName)] : []),
+    ...(!p.approved && p.reason ? [row("เหตุผล", p.reason)] : []),
+    { type: "separator", color: BORDER },
+    row("เลขที่", p.requestNo),
+  ];
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: color, paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: p.approved ? "✓" : "✕", size: "lg", color: "#ffffff", align: "center", weight: "bold" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: p.approved ? "คำขอลาได้รับอนุมัติ" : "คำขอลาถูกปฏิเสธ", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: p.approved ? "ลาของคุณได้รับการอนุมัติแล้ว 🎉" : "โปรดติดต่อหัวหน้า/HR หากมีข้อสงสัย", color: "#ffffff", size: "xs" },
+          ] },
+        ],
+      },
+      { type: "box", layout: "vertical", paddingAll: "18px", spacing: "md", contents: detail },
+    ],
+  };
+  return flex(p.approved ? "คำขอลาได้รับอนุมัติ" : "คำขอลาถูกปฏิเสธ", bubble(body, { size: "mega" }));
+}
+
 /** Welcome / linked-success card. */
 export function welcomeFlex(p: { name: string; linked: boolean; leaveUri?: string }): LineMessage {
   return infoFlex({

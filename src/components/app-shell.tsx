@@ -21,7 +21,7 @@ type Cat = { key: string; label: string; Icon: (p: { className?: string }) => Re
 const RAIL: Cat[] = [
   { key: "overview", label: "ภาพรวม", Icon: IconDashboard, route: "/dashboard" },
   { key: "people", label: "บุคคล", Icon: IconUsers, route: "/dashboard/employees" },
-  { key: "requests", label: "คำขอ", Icon: IconInbox },
+  { key: "requests", label: "คำขอ", Icon: IconInbox, route: "/dashboard/leave" },
   { key: "settings", label: "ตั้งค่า", Icon: IconSettings },
 ];
 
@@ -37,7 +37,7 @@ const SIDEBAR: Record<string, { title: string; items: Item[] }> = {
   requests: {
     title: "คำขอ",
     items: [
-      { label: "การลา", Icon: IconLeave, soon: true },
+      { label: "การลา", Icon: IconLeave, href: "/dashboard/leave" },
       { label: "OT", Icon: IconClock, soon: true },
       { label: "ลงเวลา", Icon: IconCheckin, soon: true },
       { label: "เอกสาร", Icon: IconDocument, soon: true },
@@ -58,6 +58,7 @@ const TITLES: Record<string, string> = {
   "/dashboard/employees": "พนักงาน",
   "/dashboard/departments": "แผนก",
   "/dashboard/positions": "ตำแหน่ง",
+  "/dashboard/leave": "การลา",
 };
 
 function catFromPath(path: string): string {

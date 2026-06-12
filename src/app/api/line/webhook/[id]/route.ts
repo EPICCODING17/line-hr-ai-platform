@@ -4,6 +4,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { verifyLineSignature } from "@/lib/line/verify";
 import { replyMessage, textMsg, type LineMessage } from "@/lib/line/client";
 import { infoFlex, comingSoonFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
+import { actOnLeaveRequest } from "@/lib/approval";
 
 export const runtime = "nodejs";
 
@@ -83,11 +84,29 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
     return reply([textMsg("ยินดีต้อนรับสู่ระบบ HR 👋\nกรุณาพิมพ์ “รหัสพนักงาน” ของคุณเพื่อผูกบัญชี\nตัวอย่าง: EMP-2026-0001")]);
   }
 
-  // rich-menu buttons
+  // rich-menu buttons + approval decisions
   if (ev.type === "postback") {
-    const action = new URLSearchParams(ev.postback?.data ?? "").get("action");
+    const data = ev.postback?.data ?? "";
     const emp = await findEmployeeByLine(admin, ctx.tenantId, userId);
     if (!emp) return reply([textMsg("กรุณาผูกบัญชีก่อน โดยพิมพ์รหัสพนักงาน (เช่น EMP-2026-0001)")]);
+
+    const decisionMatch = /^(approve|reject):(.+)$/.exec(data);
+    if (decisionMatch) {
+      const decision = decisionMatch[1] === "approve" ? "approved" : "rejected";
+      const res = await actOnLeaveRequest(admin, {
+        tenantId: ctx.tenantId, requestId: decisionMatch[2], decision,
+        byName: emp.first_name, requireApproverId: emp.id,
+      });
+      if (!res.ok) return reply([textMsg(`⚠️ ${res.error}`)]);
+      const msg = decision === "rejected"
+        ? "ปฏิเสธคำขอลาแล้ว — ระบบแจ้งผลให้พนักงานเรียบร้อย"
+        : res.final === "approved"
+          ? "อนุมัติคำขอลาเรียบร้อย ✅ ระบบแจ้งผลให้พนักงานแล้ว"
+          : "อนุมัติขั้นของคุณแล้ว ✅ ส่งต่อให้ผู้อนุมัติลำดับถัดไป";
+      return reply([textMsg(msg)]);
+    }
+
+    const action = new URLSearchParams(data).get("action");
     return reply(await actionReply(admin, ctx, emp, action));
   }
 

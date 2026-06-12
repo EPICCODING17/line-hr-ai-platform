@@ -39,6 +39,16 @@
 
 ## บันทึกรายวัน
 
+### 2026-06-13 — Phase 3: Approval Workflow (ลา) ✅
+- **`src/lib/approval.ts`** — engine: `instantiateLeaveApproval` (อ่าน workflow leave → สร้าง `leave_approval_steps` resolve approver: manager→`manager_id`, role→หาคน role, specific_user, department_head; unresolved=skip; set `workflow_id`+`current_step`; แจ้ง approver แรก) + `actOnLeaveRequest` (approve→เลื่อน step ถัดไป/จบ, reject→จบ; แจ้งพนักงาน/approver ถัดไป; กันทำซ้ำ; `requireApproverId` ฝั่ง LINE)
+- **Flex การ์ดอนุมัติ** (`flex.ts`): `approvalRequestFlex` (หัวส้ม + ปุ่ม postback approve/reject) + `approvalResultFlex` (เขียว/แดง ผลถึงพนักงาน)
+- **wire**: submit LIFF → instantiate; webhook postback `approve:/reject:<id>` → actOn (auth ด้วย approver id); dashboard actions
+- **หน้า `/dashboard/leave`** — filter tabs (ทั้งหมด/รอ/อนุมัติ/ไม่อนุมัติ) + การ์ดคำขอ + อนุมัติ(ConfirmDialog)/ปฏิเสธ(modal+เหตุผล); เมนู sidebar "การลา" ใช้งานจริง
+- **org seed** (`seed-org.mjs`): เมธี=manager, ปนัดดา=hr, ผูก manager_id ทีม (เดิมว่างหมด workflow หา approver ไม่ได้)
+- **แก้บั๊ก**: actions.ts `holidays.date` → `holiday_date` (คอลัมน์จริง)
+- **verify**: route ทดสอบชั่วคราว create→instantiate (step1 เมธี/step2 ปนัดดา resolve ครบ) → approve×2 (step1→step2→approved) → กันซ้ำ ✅ + วราภรณ์ได้การ์ดผลเข้า LINE; screenshot หน้า dashboard ผ่าน design system; tsc สะอาด; ลบ route ทดสอบแล้ว
+- **ค้าง**: OT/ลงเวลา/เอกสาร flows (ใช้ engine เดียวกันต่อยอดได้), ปุ่มอนุมัติใน LINE ต้องให้หัวหน้าผูกบัญชี (โครงพร้อม)
+
 ### 2026-06-13 — ข้อความบอตยกระดับเป็น Flex Message ✅ (impeccable)
 - **`src/lib/line/flex.ts`** — builder การ์ดตามแบรนด์: ใบเสร็จลา (header เขียว + rows + pill สถานะ), รายการสถานะ (header น้ำเงิน + pill สีตามสถานะ), info/coming-soon/contact/welcome (header ไอคอนสี + ปุ่ม CTA), map สีสถานะ 7 แบบ
 - แทน `textMsg` ทั้งหมดใน webhook: postback (ลา=การ์ด+ปุ่ม, สถานะ=รายการจริง, OT/ลงเวลา/เอกสาร=coming-soon, ติดต่อ=contact), follow/ผูกบัญชี=welcome; และ push ใบเสร็จตอน submit LIFF

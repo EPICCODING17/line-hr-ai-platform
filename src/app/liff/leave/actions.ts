@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/crypto";
 import { pushMessage } from "@/lib/line/client";
 import { leaveReceiptFlex } from "@/lib/line/flex";
+import { instantiateLeaveApproval } from "@/lib/approval";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -157,11 +158,11 @@ export async function submitLeaveRequest(raw: unknown): Promise<SubmitResult> {
   // holidays within the range → excluded from the day count
   const { data: hol } = await admin
     .from("holidays")
-    .select("date")
+    .select("holiday_date")
     .eq("tenant_id", tenantId)
-    .gte("date", input.startDate)
-    .lte("date", input.endDate);
-  const holidaySet = new Set((hol ?? []).map((h) => h.date as string));
+    .gte("holiday_date", input.startDate)
+    .lte("holiday_date", input.endDate);
+  const holidaySet = new Set((hol ?? []).map((h) => h.holiday_date as string));
 
   const totalDays = input.isHalfDay ? 0.5 : countWorkingDays(input.startDate, input.endDate, holidaySet);
   if (totalDays <= 0) {
@@ -175,7 +176,7 @@ export async function submitLeaveRequest(raw: unknown): Promise<SubmitResult> {
   });
   if (rnErr || !reqNo) return { ok: false, error: "ออกเลขที่คำขอไม่สำเร็จ" };
 
-  const { error: insErr } = await admin.from("leave_requests").insert({
+  const { data: inserted, error: insErr } = await admin.from("leave_requests").insert({
     tenant_id: tenantId,
     request_no: reqNo,
     employee_id: emp.id,
@@ -189,8 +190,8 @@ export async function submitLeaveRequest(raw: unknown): Promise<SubmitResult> {
     status: "pending",
     source: "liff",
     created_by: emp.id,
-  });
-  if (insErr) return { ok: false, error: "บันทึกคำขอไม่สำเร็จ กรุณาลองใหม่" };
+  }).select("id").single();
+  if (insErr || !inserted) return { ok: false, error: "บันทึกคำขอไม่สำเร็จ กรุณาลองใหม่" };
 
   // best-effort confirmation back into the LINE chat
   try {
@@ -202,6 +203,9 @@ export async function submitLeaveRequest(raw: unknown): Promise<SubmitResult> {
   } catch {
     /* push failure must not fail the request */
   }
+
+  // kick off the approval workflow (creates steps + notifies the first approver)
+  try { await instantiateLeaveApproval(admin, tenantId, inserted.id as string); } catch (e) { console.error("approval instantiate", e); }
 
   return { ok: true, requestNo: reqNo as string, totalDays };
 }
