@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/crypto";
 import { verifyLineSignature } from "@/lib/line/verify";
 import { replyMessage, textMsg, type LineMessage } from "@/lib/line/client";
+import { infoFlex, comingSoonFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
 
 export const runtime = "nodejs";
 
@@ -78,7 +79,7 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
 
   if (ev.type === "follow") {
     const emp = await findEmployeeByLine(admin, ctx.tenantId, userId);
-    if (emp) return reply([textMsg(`สวัสดีคุณ${emp.first_name} 🙌 เลือกบริการจากเมนูด้านล่างได้เลย`)]);
+    if (emp) return reply([welcomeFlex({ name: emp.first_name, linked: false, leaveUri: leaveLink(ctx) })]);
     return reply([textMsg("ยินดีต้อนรับสู่ระบบ HR 👋\nกรุณาพิมพ์ “รหัสพนักงาน” ของคุณเพื่อผูกบัญชี\nตัวอย่าง: EMP-2026-0001")]);
   }
 
@@ -106,7 +107,7 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
     }
 
     const linked = await linkByCode(admin, ctx.tenantId, userId, text);
-    if (linked) return reply([textMsg(`ผูกบัญชีสำเร็จ ✅ สวัสดีคุณ${linked.first_name}\nเลือกบริการจากเมนูด้านล่างได้เลย`)]);
+    if (linked) return reply([welcomeFlex({ name: linked.first_name, linked: true, leaveUri: leaveLink(ctx) })]);
 
     return reply([textMsg("ยังไม่พบบัญชีของคุณ 🔎\nกรุณาพิมพ์ “รหัสพนักงาน” เพื่อผูกบัญชี (เช่น EMP-2026-0001)\nหรือติดต่อ HR")]);
   }
@@ -120,52 +121,53 @@ async function actionReply(
     case "leave": {
       const url = leaveLink(ctx);
       if (!url) return [textMsg("ขออภัย ระบบฟอร์มลายังไม่พร้อมใช้งานชั่วคราว")];
-      return [{
-        type: "template",
-        altText: "ขอลางาน",
-        template: {
-          type: "buttons",
-          title: "ขอลางาน",
-          text: "กดเปิดฟอร์มเพื่อกรอกรายละเอียดการลา",
-          actions: [{ type: "uri", label: "เปิดฟอร์มลางาน", uri: url }],
-        },
-      }];
+      return [infoFlex({
+        color: "#3c8cf3", emoji: "📝", title: "ขอลางาน",
+        text: "กดปุ่มด้านล่างเพื่อเปิดฟอร์มกรอกรายละเอียดการลา ระบบจะส่งให้หัวหน้าอนุมัติให้",
+        altText: "ขอลางาน", button: { label: "เปิดฟอร์มลางาน", uri: url },
+      })];
     }
     case "status":
-      return [textMsg(await statusText(admin, ctx.tenantId, emp.id))];
+      return [await statusReply(admin, ctx.tenantId, emp)];
     case "ot":
-      return [textMsg("ฟีเจอร์ขอ OT กำลังจะเปิดให้บริการเร็วๆ นี้ ⏱️")];
+      return [comingSoonFlex("ขอ OT", "⏱️")];
     case "checkin":
-      return [textMsg("ฟีเจอร์ลงเวลาเข้า–ออกงาน กำลังจะเปิดให้บริการเร็วๆ นี้ ✅")];
+      return [comingSoonFlex("ลงเวลาเข้า–ออกงาน", "✅")];
     case "document":
-      return [textMsg("ฟีเจอร์ขอเอกสาร (หนังสือรับรอง ฯลฯ) กำลังจะเปิดให้บริการเร็วๆ นี้ 📄")];
+      return [comingSoonFlex("ขอเอกสาร", "📄")];
     case "contact":
-      return [textMsg("ติดต่อฝ่ายบุคคล (HR)\n📧 hr@demo.co\n☎️ ต่อ 100\nเวลาทำการ จันทร์–ศุกร์ 9:00–18:00")];
+      return [contactFlex()];
     default:
       return [textMsg("เลือกบริการจากเมนูด้านล่างได้เลย")];
   }
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: "⏳ รออนุมัติ", approved: "✅ อนุมัติแล้ว", rejected: "❌ ไม่อนุมัติ",
-  cancelled: "🚫 ยกเลิก", completed: "🏁 เสร็จสิ้น", draft: "📝 ร่าง", failed: "⚠️ ล้มเหลว",
-};
-
-async function statusText(admin: ReturnType<typeof createAdminClient>, tenantId: string, employeeId: string) {
+async function statusReply(
+  admin: ReturnType<typeof createAdminClient>, tenantId: string,
+  emp: { id: string; first_name: string },
+): Promise<LineMessage> {
   const { data } = await admin
     .from("leave_requests")
     .select("request_no, start_date, end_date, total_days, status, leave_types(name)")
-    .eq("tenant_id", tenantId).eq("employee_id", employeeId)
+    .eq("tenant_id", tenantId).eq("employee_id", emp.id)
     .is("deleted_at", null).order("created_at", { ascending: false }).limit(5);
 
-  if (!data || data.length === 0) return "ยังไม่มีคำขอลาในระบบ\nกดปุ่ม “ลางาน” เพื่อสร้างคำขอแรกได้เลย";
+  if (!data || data.length === 0) {
+    return infoFlex({
+      color: "#3c8cf3", emoji: "📋", title: "ยังไม่มีคำขอลา",
+      text: "กดปุ่ม “ลางาน” ในเมนูด้านล่างเพื่อสร้างคำขอแรกของคุณได้เลย",
+      altText: "ยังไม่มีคำขอลา",
+    });
+  }
 
-  const lines = data.map((r) => {
-    const lt = (r.leave_types as { name?: string } | null)?.name ?? "การลา";
-    const range = r.start_date === r.end_date ? r.start_date : `${r.start_date}–${r.end_date}`;
-    return `${STATUS_LABEL[r.status as string] ?? r.status}  ${lt}\n  ${range} · ${r.total_days} วัน · ${r.request_no}`;
-  });
-  return `คำขอล่าสุดของคุณ\n\n${lines.join("\n\n")}`;
+  const items = data.map((r) => ({
+    typeName: (r.leave_types as { name?: string } | null)?.name ?? "การลา",
+    range: r.start_date === r.end_date ? String(r.start_date) : `${r.start_date}–${r.end_date}`,
+    days: r.total_days as number,
+    status: r.status as string,
+    requestNo: r.request_no as string,
+  }));
+  return statusListFlex(emp.first_name, items);
 }
 
 async function findEmployeeByLine(admin: ReturnType<typeof createAdminClient>, tenantId: string, userId: string) {

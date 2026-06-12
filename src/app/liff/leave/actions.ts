@@ -3,7 +3,8 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/crypto";
-import { pushMessage, textMsg } from "@/lib/line/client";
+import { pushMessage } from "@/lib/line/client";
+import { leaveReceiptFlex } from "@/lib/line/flex";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -194,11 +195,9 @@ export async function submitLeaveRequest(raw: unknown): Promise<SubmitResult> {
   // best-effort confirmation back into the LINE chat
   try {
     const token = decryptSecret(acct.channel_access_token_enc);
-    const range = input.startDate === input.endDate ? input.startDate : `${input.startDate} ถึง ${input.endDate}`;
+    const range = input.startDate === input.endDate ? input.startDate : `${input.startDate} – ${input.endDate}`;
     await pushMessage(token, input.lineUserId, [
-      textMsg(
-        `✅ ส่งคำขอลาเรียบร้อย\nเลขที่: ${reqNo}\nประเภท: ${ltype.name}\nวันที่: ${range}\nรวม ${totalDays} วัน\nสถานะ: รออนุมัติ`,
-      ),
+      leaveReceiptFlex({ requestNo: reqNo as string, typeName: ltype.name, range, days: totalDays, status: "pending" }),
     ]);
   } catch {
     /* push failure must not fail the request */
