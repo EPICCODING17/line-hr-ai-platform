@@ -165,15 +165,17 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props
   return (
     <main className="liff-shell">
       <header className="liff-head">
-        <div className="liff-head-row">
-          <h1 className="liff-title">ขอลางาน</h1>
-          {employee && (
-            <span className="liff-who" title={employee.code}>
-              {employee.firstName} {employee.lastName}
+        {employee && (
+          <div className="liff-greet">
+            <span className="liff-avatar" aria-hidden>{initials(employee.firstName, employee.lastName)}</span>
+            <span className="liff-greet-text">
+              <span className="liff-hi">สวัสดีคุณ{employee.firstName} 👋</span>
+              <span className="liff-code">{employee.code}</span>
             </span>
-          )}
-        </div>
-        <p className="liff-sub">กรอกรายละเอียดการลา ระบบจะส่งให้หัวหน้าอนุมัติ</p>
+          </div>
+        )}
+        <h1 className="liff-title">ขอลางาน</h1>
+        <p className="liff-sub">กรอกรายละเอียดการลา ระบบจะส่งให้หัวหน้าอนุมัติให้โดยอัตโนมัติ</p>
       </header>
 
       <div className="liff-form">
@@ -191,11 +193,17 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props
                   role="radio"
                   aria-checked={active}
                   className={`type-chip${active ? " is-active" : ""}`}
+                  style={{ ["--c" as string]: t.color ?? "#3c8cf3" }}
                   onClick={() => setTypeId(t.id)}
                 >
-                  <span className="type-dot" style={{ background: t.color ?? "var(--primary)" }} aria-hidden />
+                  <span className="type-tile" aria-hidden>
+                    <CategoryIcon category={t.category} />
+                  </span>
                   <span className="type-name">{t.name}</span>
                   {bal && <span className="type-bal">เหลือ {fmt(bal.remaining)} วัน</span>}
+                  <span className="type-check" aria-hidden>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                  </span>
                 </button>
               );
             })}
@@ -296,6 +304,27 @@ function fmt(n: number) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
+function initials(first: string, last: string) {
+  return ((first?.[0] ?? "") + (last?.[0] ?? "")).trim() || "?";
+}
+
+/** A line icon per leave category — colored by the type's own color via --c. */
+function CategoryIcon({ category }: { category: string }) {
+  const p: Record<string, React.ReactNode> = {
+    annual: <><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4" /><circle cx="12" cy="12" r="3.5" /></>, // sun — vacation
+    sick: <path d="M20.8 11.5a5 5 0 0 0-8.8-3 5 5 0 1 0-8.8 3c1.9 2.6 5.9 5.4 8.8 7.5 2.9-2.1 6.9-4.9 8.8-7.5Z" />, // heart
+    personal: <><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /></>, // person
+    maternity: <><circle cx="12" cy="5" r="2.2" /><path d="M12 8.5c-2 0-3 1.5-3 3.5 0 2 1 3 1 4.5M12 8.5c2.4 0 3.2 2 3.5 4 .2 1.5-.6 2.3-1.5 2.3M10 16.5 9 21M13 16h1.5l.5 5" /></>, // baby/parent
+    military: <path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6l-7-3Z" />, // shield
+    other: <><circle cx="6" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="18" cy="12" r="1.4" /></>, // more
+  };
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {p[category] ?? p.other}
+    </svg>
+  );
+}
+
 function Loading() {
   return (
     <main className="liff-shell">
@@ -342,8 +371,13 @@ function Success({ requestNo, totalDays, inLiff, onClose }: { requestNo: string;
   return (
     <main className="liff-shell">
       <div className="liff-center">
-        <div className="state-icon state-icon--ok success-pop" aria-hidden>
-          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+        <div className="success-burst" aria-hidden>
+          {Array.from({ length: 8 }).map((_, i) => <span key={i} className={`confetti c${i}`} />)}
+          <div className="state-icon state-icon--ok success-pop">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+              <path className="check-draw" d="M20 6 9 17l-5-5" />
+            </svg>
+          </div>
         </div>
         <h1 className="state-title">ส่งคำขอลาแล้ว</h1>
         <p className="state-detail">คำขอของคุณถูกส่งให้หัวหน้าอนุมัติเรียบร้อย</p>

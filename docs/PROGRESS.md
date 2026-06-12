@@ -6,16 +6,26 @@
 ---
 
 ## สถานะรวม
-- **Phase ปัจจุบัน:** Phase 2 — **Rich Menu + LIFF ฟอร์มลา เสร็จ! ✅** Rich Menu ขึ้นบอทเป็น default, ฟอร์มลางาน LIFF บันทึกคำขอจริง (LEV-xxxx), webhook ตอบ postback ครบ 6 ปุ่ม
-- **🔴 รอ Pong กดเอง:** (1) ตั้ง Webhook URL ใหม่ (tunnel เปลี่ยนทุกครั้ง) (2) **สร้าง LIFF app** เพื่อให้ปุ่ม “ลางาน” เปิดฟอร์มได้จริง → ใส่ `LINE_LIFF_ID` แล้วรัน `setup-rich-menu` ใหม่ (3) เปิด Custom Access Token hook
+- **Phase ปัจจุบัน:** Phase 2 — **ขึ้น production ครบวงจรแล้ว! ✅** Deploy Vercel + GitHub, Rich Menu + LIFF ฟอร์มลา + webhook ทำงานบนโดเมนถาวร, Webhook Verify ผ่าน
+- **ถัดไป:** **Phase 3 — Approval workflow** (อนุมัติ/ปฏิเสธคำขอลา + แจ้งเตือน) เพื่อปิดลูปการลา + หน้า dashboard รายการคำขอลาให้ HR; แล้วต่อ flow OT/ลงเวลา/เอกสาร
 - **Supabase:** Singapore (aws-1 pooler) · migrations ถึง **0009** · Demo Co seeded (6 พนักงาน, admin user)
-- **Login:** admin@demo.co / Demo!2026
+- **Login dashboard:** admin@demo.co / Demo!2026
 - **อัปเดตล่าสุด:** 2026-06-12
 
-### 🔗 ค่าที่เปลี่ยนทุกครั้งที่รันเครื่องใหม่ (tunnel ephemeral)
-- **Webhook URL ปัจจุบัน:** `https://fixes-becomes-ship-committees.trycloudflare.com/api/line/webhook/d3684f40-f566-4604-b5bf-262dc4f443cd`
-- รัน dev: `npm run dev` · รัน tunnel: `./.tools/cloudflared.exe tunnel --url http://localhost:3000` (URL อยู่ใน `.tools/tunnel.log`)
-- ตั้ง URL ใน LINE Developers → Messaging API → Webhook URL → Verify
+### 🌐 Production (โดเมนถาวร — ไม่ต้องเปลี่ยนอีก)
+- **GitHub:** `https://github.com/EPICCODING17/line-hr-ai-platform` (private) · workflow: แก้โค้ด → `git push` → Vercel auto-deploy
+- **Vercel:** `https://line-hr-ai-platform.vercel.app`
+- **Webhook URL (Messaging API channel):** `https://line-hr-ai-platform.vercel.app/api/line/webhook/d3684f40-f566-4604-b5bf-262dc4f443cd` ✅ verified
+- **LIFF endpoint (LINE Login channel):** `https://line-hr-ai-platform.vercel.app/liff/leave?acct=d3684f40-f566-4604-b5bf-262dc4f443cd` · LIFF ID `2010383091-kBSUiU9b`
+- **Vercel env (4 ตัว):** NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY, APP_ENCRYPTION_KEY
+- tunnel/cloudflared **เลิกใช้แล้ว** (ใช้แค่ตอน dev local เท่านั้น)
+
+### 2026-06-12 — Deploy GitHub + Vercel ✅
+- git init + push ขึ้น GitHub (EPICCODING17) — แก้ปัญหา GCM ค้างบัญชี jakkapong-jpg (403) → ล้าง credential → login EPICCODING17
+- Import Vercel + ใส่ env 4 ตัว → build ผ่าน, โดเมนถาวร
+- ตั้ง Webhook URL + LIFF endpoint เป็นโดเมน Vercel → **Webhook Verify Success**
+- เช็ค production: `/login` 200, `/liff/leave` 200, webhook POST→401(no sig, route alive), GET→405 — ครบ
+- บั๊กที่เจอตอน setup: (1) LIFF endpoint ใส่แค่โดเมน → เด้ง /login dashboard → ต้องใส่ path `/liff/leave?acct=` ครบ (2) Webhook ใส่ path ไม่ครบ → 405 → ต้อง `/api/line/webhook/{id}` ครบ
 
 ## Roadmap checklist
 - [x] **Phase 0** — Foundation DB + RLS
