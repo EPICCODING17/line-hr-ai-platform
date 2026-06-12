@@ -39,6 +39,12 @@
 
 ## บันทึกรายวัน
 
+### 2026-06-12 — LIFF ฟอร์มลา: redesign พรีเมียม ✅ (impeccable `delight`)
+- Header อบอุ่น: avatar gradient (ตัวย่อชื่อ) + ทักทาย "สวัสดีคุณ…" + รหัสพนักงาน
+- การ์ดประเภทลา: ไอคอน tile สีรายประเภท (annual=ดวงอาทิตย์, sick=หัวใจ, personal=คน, maternity=เด็ก, military=โล่, other=จุด) ระบายสีตาม `leave_types.color` ผ่าน `--c` + color-mix; การ์ดที่เลือก = ขอบสี + tint + check badge + ยกตัว
+- Success: checkmark วาด (stroke-dashoffset) + confetti burst สีแบรนด์; พื้นหลัง radial tint บางๆ; ปุ่ม submit มีมิติ; toggle spring; reduced-motion ครบ
+- คุมโทนตาม brand (มืออาชีพ+อบอุ่น ไม่การ์ตูน); tsc สะอาด; verify ด้วย screenshot (form + success) → push → Vercel auto-deploy → ยืนยัน production มี marker `type-tile/check-draw/liff-avatar` + เรนเดอร์จริง
+
 ### 2026-06-12 — Phase 2: Rich Menu + LIFF ฟอร์มลางาน ✅ (นำด้วยสกิล impeccable)
 **Migration 0009** `public.gen_request_no(tenant, prefix)` — wrapper ของ `app.next_doc_number` ออกเลขคำขอ `LEV-DDMMYYYY-0001` (Bangkok tz, security definer, grant ครบ) → push cloud + verify RPC คืน `LEV-12062026-0001`
 
