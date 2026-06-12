@@ -1,0 +1,10 @@
+import { readFileSync } from "node:fs";
+import { createClient } from "@supabase/supabase-js";
+const env=Object.fromEntries(readFileSync(new URL("../.env.local",import.meta.url),"utf8").split(/\r?\n/).filter(l=>l&&!l.startsWith("#")&&l.includes("=")).map(l=>{const i=l.indexOf("=");return[l.slice(0,i).trim(),l.slice(i+1).trim()];}));
+const db=createClient(env.NEXT_PUBLIC_SUPABASE_URL,env.SUPABASE_SECRET_KEY,{auth:{persistSession:false}});
+const {data:t}=await db.from("tenants").select("id").eq("slug","demo").single();
+const {data:emps}=await db.from("employees").select("employee_code,first_name,line_user_id").eq("tenant_id",t.id).not("line_user_id","is",null);
+console.log("===== พนักงานที่ผูก LINE แล้ว =====");
+(emps||[]).forEach(e=>console.log(`  ${e.employee_code} ${e.first_name} -> ${e.line_user_id.slice(0,12)}...`));
+const {count}=await db.from("line_messages").select("*",{count:"exact",head:true}).eq("tenant_id",t.id);
+console.log("line_messages logged:", count);

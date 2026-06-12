@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* LINE rich menu canvas — large layout: 2500 x 1686, 3 columns x 2 rows */
+  :root{
+    --ink:#1f2733; --muted:#5b6470; --border:#e7e9ef; --bg:#ffffff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:2500px;height:1686px;}
+  body{
+    font-family:'Prompt',sans-serif; background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .grid{
+    width:2500px;height:1686px;display:grid;
+    grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);
+  }
+  .cell{
+    position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:46px; background:var(--bg);
+  }
+  /* hairline separators (no outer border — LINE crops to the canvas) */
+  .cell:not(:nth-child(3n)){box-shadow:1px 0 0 var(--border);}
+  .cell:nth-child(-n+3){box-shadow:0 1px 0 var(--border);}
+  .cell:nth-child(1),.cell:nth-child(2){box-shadow:1px 0 0 var(--border),0 1px 0 var(--border);}
+  .tile{
+    width:212px;height:212px;border-radius:54px;display:grid;place-items:center;
+  }
+  .tile svg{width:108px;height:108px;stroke-width:2.1;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+  .label{font-size:62px;font-weight:600;letter-spacing:-0.01em;}
+  .sub{font-size:34px;font-weight:400;color:var(--muted);margin-top:-30px;}
+
+  .c-blue   .tile{background:#e8f1fe;} .c-blue   svg{stroke:#3c8cf3;}
+  .c-purple .tile{background:#efecfe;} .c-purple svg{stroke:#745af2;}
+  .c-green  .tile{background:#e1f7f1;} .c-green  svg{stroke:#05be8a;}
+  .c-amber  .tile{background:#fdf1dd;} .c-amber  svg{stroke:#d9820a;}
+  .c-slate  .tile{background:#eef0f5;} .c-slate  svg{stroke:#5b6470;}
+  .c-teal   .tile{background:#e0f5f6;} .c-teal   svg{stroke:#0e9aa7;}
+</style>
+</head>
+<body>
+  <div class="grid">
+    <!-- 1: ลางาน -->
+    <div class="cell c-blue">
+      <div class="tile"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/><path d="M8.5 14.5l2.2 2.2 4.3-4.6"/></svg></div>
+      <div class="label">ลางาน</div>
+    </div>
+    <!-- 2: ขอ OT -->
+    <div class="cell c-purple">
+      <div class="tile"><svg viewBox="0 0 24 24"><circle cx="12" cy="12.5" r="8"/><path d="M12 8.5v4.2l2.8 1.8M12 1.5h0M5 3.5 3 5.5M19 3.5l2 2"/></svg></div>
+      <div class="label">ขอ OT</div>
+    </div>
+    <!-- 3: ลงเวลา -->
+    <div class="cell c-green">
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M9 11.5l2.3 2.3L20 5.5"/><path d="M20.5 12.5a8.5 8.5 0 1 1-4.6-7.6"/></svg></div>
+      <div class="label">ลงเวลา</div>
+    </div>
+    <!-- 4: ขอเอกสาร -->
+    <div class="cell c-amber">
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></div>
+      <div class="label">ขอเอกสาร</div>
+    </div>
+    <!-- 5: สถานะคำขอ -->
+    <div class="cell c-slate">
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></div>
+      <div class="label">สถานะคำขอ</div>
+    </div>
+    <!-- 6: ติดต่อ HR -->
+    <div class="cell c-teal">
+      <div class="tile"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="7" rx="1.6"/><rect x="17" y="12" width="4" height="7" rx="1.6"/><path d="M20 19a3 3 0 0 1-3 3h-3"/></svg></div>
+      <div class="label">ติดต่อ HR</div>
+    </div>
+  </div>
+</body>
+</html>

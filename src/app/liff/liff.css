@@ -1,0 +1,177 @@
+/* =====================================================================
+   LIFF surfaces — standalone mobile forms inside the LINE in-app browser.
+   Reuses the platform tokens (globals.css); adds form-specific structure.
+   Locked to the light theme (see theme-lock.tsx).
+   ===================================================================== */
+
+.liff-body {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+.liff-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px calc(20px + env(safe-area-inset-bottom));
+  gap: 18px;
+}
+
+/* ---------- header ---------- */
+.liff-head { display: flex; flex-direction: column; gap: 4px; }
+.liff-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.liff-title { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.liff-who {
+  font-size: 13px; font-weight: 500; color: var(--primary-soft-fg);
+  background: var(--primary-soft); padding: 4px 10px; border-radius: 999px;
+  white-space: nowrap; max-width: 50%; overflow: hidden; text-overflow: ellipsis;
+}
+.liff-sub { margin: 0; font-size: 13px; color: var(--text-muted); }
+
+/* ---------- form ---------- */
+.liff-form { display: flex; flex-direction: column; gap: 22px; flex: 1; }
+.field { display: flex; flex-direction: column; gap: 9px; }
+.field-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.field-opt { font-weight: 400; color: var(--text-faint); }
+
+/* leave type chips — 2-up grid, color-coded, balance inline */
+.type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.type-chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  text-align: left; padding: 11px 12px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 14px; transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.type-chip:active { background: var(--surface-2); }
+.type-chip.is-active {
+  border-color: var(--primary); background: var(--primary-soft);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.type-dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+.type-name { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.25; }
+.type-bal { font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.type-chip.is-active .type-bal { color: var(--primary-soft-fg); }
+
+/* dates */
+/* Native date inputs in Chromium have a hard intrinsic min-width (~165px) that
+   ignores min-width:0, so two side-by-side overflow narrow phones. LIFF is
+   always a phone — stack them and let each take the full width. */
+.date-row { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.date-cell { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.date-cell .liff-input { font-size: 15px; padding: 0 13px; }
+.date-arrow { display: none; }
+/* Side-by-side only when there is comfortably room (large phones / tablets). */
+@media (min-width: 460px) {
+  .date-row { flex-direction: row; align-items: flex-end; gap: 10px; }
+  .date-cell { flex: 1 1 0; }
+  .date-arrow { display: inline; }
+}
+.date-cap { font-size: 12px; color: var(--text-muted); }
+.date-arrow { color: var(--text-faint); padding-bottom: 12px; font-size: 16px; }
+
+.liff-input {
+  width: 100%; height: 46px; padding: 0 13px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: 12px; color: var(--text); font: inherit; font-size: 15px;
+  transition: border-color .15s, box-shadow .15s;
+  -webkit-appearance: none; appearance: none; min-width: 0;
+}
+.liff-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--ring); }
+.liff-textarea { height: auto; padding: 11px 13px; line-height: 1.5; resize: vertical; min-height: 80px; }
+
+/* half-day */
+.halfday { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 11px; flex-wrap: wrap; }
+.switch { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch-track {
+  width: 42px; height: 25px; border-radius: 999px; background: var(--border-strong);
+  position: relative; transition: background .18s ease; flex: 0 0 auto;
+}
+.switch-thumb {
+  position: absolute; top: 2.5px; left: 2.5px; width: 20px; height: 20px; border-radius: 999px;
+  background: #fff; box-shadow: var(--shadow-sm); transition: transform .2s cubic-bezier(.2,.9,.3,1);
+}
+.switch input:checked + .switch-track { background: var(--primary); }
+.switch input:checked + .switch-track .switch-thumb { transform: translateX(17px); }
+.switch input:focus-visible + .switch-track { box-shadow: 0 0 0 3px var(--ring); }
+.switch-text { font-size: 14px; color: var(--text); }
+
+/* segmented (am/pm) */
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 3px; }
+.seg-btn { padding: 6px 16px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--text-muted); background: none; border: none; transition: background .15s, color .15s; }
+.seg-btn.is-active { background: var(--surface); color: var(--primary-soft-fg); box-shadow: var(--shadow-sm); }
+
+.note-warn {
+  margin: 0; font-size: 12.5px; line-height: 1.5; color: #8a5a00;
+  background: var(--warning-soft); padding: 10px 12px; border-radius: 11px;
+}
+
+/* ---------- sticky footer ---------- */
+.liff-foot {
+  position: sticky; bottom: 0;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 0 calc(2px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 72%, transparent);
+}
+.summary { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.summary-label { font-size: 13px; color: var(--text-muted); }
+.summary-days { font-size: 19px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.summary-unit { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.summary-over { font-size: 12px; color: var(--danger); font-weight: 500; }
+
+.form-error { margin: 0; font-size: 13px; color: var(--danger); font-weight: 500; }
+
+.liff-submit {
+  width: 100%; height: 50px; border: none; border-radius: 13px;
+  background: var(--primary); color: var(--primary-fg);
+  font: inherit; font-size: 16px; font-weight: 600;
+  box-shadow: 0 8px 20px -8px var(--ring); transition: background .15s, transform .1s, opacity .15s;
+}
+.liff-submit:active { transform: scale(.99); }
+.liff-submit:disabled { opacity: .5; box-shadow: none; }
+
+/* ---------- states: needlink / error / success ---------- */
+.liff-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; padding: 40px 8px; }
+.state-icon { width: 60px; height: 60px; border-radius: 18px; display: grid; place-items: center; }
+.state-icon--info { background: var(--primary-soft); color: var(--primary-soft-fg); }
+.state-icon--danger { background: var(--danger-soft); color: var(--danger); }
+.state-icon--ok { background: var(--success-soft); color: var(--success); }
+.state-title { margin: 4px 0 0; font-size: 19px; font-weight: 600; }
+.state-detail { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-muted); max-width: 32ch; }
+
+.receipt { width: 100%; max-width: 320px; margin: 8px 0 4px; display: flex; flex-direction: column; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.receipt > div { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; }
+.receipt > div + div { border-top: 1px solid var(--border); }
+.receipt dt { margin: 0; font-size: 13px; color: var(--text-muted); }
+.receipt dd { margin: 0; font-size: 14px; font-weight: 500; color: var(--text); }
+.chip-pending { font-size: 12px; font-weight: 500; color: var(--warning); background: var(--warning-soft); padding: 3px 10px; border-radius: 999px; }
+
+/* ---------- fatal (server-side, no theme-lock yet) ---------- */
+.liff-fatal { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 60px 24px; min-height: 70dvh; }
+.liff-fatal-icon { width: 56px; height: 56px; border-radius: 16px; background: var(--danger-soft); color: var(--danger); display: grid; place-items: center; }
+.liff-fatal-title { margin: 4px 0 0; font-size: 18px; font-weight: 600; }
+.liff-fatal-detail { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-muted); max-width: 34ch; }
+
+/* ---------- skeleton ---------- */
+.sk { background: var(--surface-2); border-radius: 10px; position: relative; overflow: hidden; }
+.sk::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: sk 1.3s infinite; }
+.sk-title { height: 26px; width: 50%; }
+.sk-line { height: 14px; width: 75%; }
+.sk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.sk-chip { height: 62px; }
+.sk-block { height: 46px; }
+@keyframes sk { 100% { transform: translateX(100%); } }
+
+/* ---------- motion ---------- */
+.success-pop { animation: pop .4s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes pop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sk::after { animation: none; }
+  .success-pop { animation: none; }
+  .switch-thumb, .liff-submit, .type-chip, .liff-input { transition: none; }
+}
