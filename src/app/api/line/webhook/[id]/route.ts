@@ -6,6 +6,7 @@ import { replyMessage, textMsg, type LineMessage } from "@/lib/line/client";
 import { infoFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
 import { actOnLeaveRequest, actOnOtRequest, actOnDocRequest } from "@/lib/approval";
 import { otRateLabel } from "@/lib/ot";
+import { classifyIntent, type IntentResult } from "@/lib/ai/intent";
 
 export const runtime = "nodejs";
 
@@ -180,6 +181,23 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
       if (/เอกสาร|หนังสือรับรอง|สลิป|document/i.test(text)) return reply(await actionReply(admin, ctx, emp, "document"));
       if (/ลา|leave/i.test(text)) return reply(await actionReply(admin, ctx, emp, "leave"));
       if (/สถานะ|status/i.test(text)) return reply(await actionReply(admin, ctx, emp, "status"));
+
+      // natural-language understanding (Phase 4) — routes free-form text to a flow.
+      // Falls through to the menu hint when AI is not configured.
+      const ai = await classifyIntent(text);
+      if (ai) {
+        await logIntent(admin, ctx.tenantId, emp.id, text, ai);
+        const ack = textMsg(ai.reply);
+        switch (ai.intent) {
+          case "leave": return reply([ack, ...await actionReply(admin, ctx, emp, "leave")]);
+          case "ot": return reply([ack, ...await actionReply(admin, ctx, emp, "ot")]);
+          case "document": return reply([ack, ...await actionReply(admin, ctx, emp, "document")]);
+          case "attendance": return reply([ack, ...await actionReply(admin, ctx, emp, "checkin")]);
+          case "status": return reply([ack, ...await actionReply(admin, ctx, emp, "status")]);
+          default: return reply([ack]);
+        }
+      }
+
       return reply([textMsg(`สวัสดีคุณ${emp.first_name} 🙌\nเลือกบริการจากเมนูด้านล่าง หรือพิมพ์ “ลางาน” เพื่อเริ่มได้เลย`)]);
     }
 
@@ -293,6 +311,19 @@ async function statusReply(
     });
   }
   return statusListFlex(emp.first_name, items);
+}
+
+async function logIntent(
+  admin: ReturnType<typeof createAdminClient>, tenantId: string, employeeId: string,
+  inputText: string, ai: IntentResult,
+) {
+  try {
+    await admin.from("ai_intent_logs").insert({
+      tenant_id: tenantId, employee_id: employeeId, input_text: inputText,
+      intent: ai.intent, confidence: ai.confidence, model: ai.model,
+      prompt_tokens: ai.promptTokens, completion_tokens: ai.completionTokens, latency_ms: ai.latencyMs,
+    });
+  } catch { /* logging must never break the reply */ }
 }
 
 async function findEmployeeByLine(admin: ReturnType<typeof createAdminClient>, tenantId: string, userId: string) {

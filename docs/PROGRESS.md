@@ -6,8 +6,9 @@
 ---
 
 ## สถานะรวม
-- **Phase ปัจจุบัน:** Phase 3 ครบ + **4 flow ครบวงจร: ลา · OT · เอกสาร · ลงเวลา ✅** (LIFF form + dashboard + LINE) — 3 อันแรกใช้ approval engine กลาง, ลงเวลาเป็น time-clock แยก
-- **ถัดไป:** Phase 4 AI layer (intent → slot-filling → confirm) หรือ polish/รายงาน
+- **Phase ปัจจุบัน:** 4 flow ครบ (ลา/OT/เอกสาร/ลงเวลา) + **Phase 4 เริ่ม: AI intent routing ✅** (พิมพ์ภาษาธรรมชาติ → Claude จัด intent → เปิดฟอร์มที่ใช่)
+- **🔴 ค้าง (Pong):** ใส่ `ANTHROPIC_API_KEY` ใน Vercel env เพื่อเปิด AI (ไม่ใส่ = บอตยังทำงานด้วย keyword/เมนูเหมือนเดิม)
+- **ถัดไป:** AI slot-filling (ดึงวัน/เวลา/ประเภท เติมฟอร์มอัตโนมัติ) + multi-turn (ai_conversations); รายงาน/payroll (Phase 5)
 - **Supabase:** Singapore (aws-1 pooler) · migrations ถึง **0009** · Demo Co seeded (6 พนักงาน, admin user) · OT policy/rates/workflow seed พร้อมจาก `seed_tenant_defaults`
 - **Login dashboard:** admin@demo.co / Demo!2026
 - **อัปเดตล่าสุด:** 2026-06-13
@@ -33,12 +34,19 @@
 - [x] **Phase 2** — LINE + LIFF แบบ structured (Rich Menu → form, ยังไม่มี AI)
 - [x] **Phase 3** — Approval Workflow engine (configurable) + Notification — **ลา + OT ใช้ engine กลางตัวเดียว**
 - [ ] **Phase 3.x** — flow ที่เหลือบน engine เดิม: ลงเวลา (attendance) · เอกสาร (document)
-- [ ] **Phase 4** — AI layer (async webhook → intent → slot-filling → confirm)
+- [~] **Phase 4** — AI layer: **intent routing ทำแล้ว** (NL → intent → form); เหลือ slot-filling + multi-turn
 - [ ] **Phase 5** — Payroll + Billing + PDPA
 
 ---
 
 ## บันทึกรายวัน
+
+### 2026-06-13 — Phase 4 เริ่ม: AI intent routing ✅ (Claude)
+- **`src/lib/ai/intent.ts`** — `classifyIntent(text)` ยิง Claude 1 call (`@anthropic-ai/sdk`, model `claude-opus-4-8` ค่าเริ่ม, override ได้ด้วย `ANTHROPIC_MODEL` เช่น haiku), **structured output** (`output_config.format` json_schema) + `effort: "low"` → `{intent, confidence, reply}`. 7 intent: leave/ot/document/attendance/status/greeting/unknown. **no-op คืน null ถ้าไม่มี `ANTHROPIC_API_KEY`** (บอตยัง routing ด้วย keyword ได้)
+- **wire webhook**: ข้อความ free-form ที่ keyword จับไม่ได้ → `classifyIntent` → ตอบ ack (reply ไทยจาก AI) + เปิดฟอร์มตาม intent (leave/ot/document/attendance/status) หรือข้อความช่วยเหลือ (greeting/unknown). log ลง `ai_intent_logs` (intent/confidence/model/tokens/latency, best-effort)
+- **`.env.example`** เพิ่ม `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL` (แทน OPENAI เดิม)
+- **verify:** tsc + `next build` ผ่าน (SDK รับ output_config+effort). **ยังไม่ได้เทส classification จริง** เพราะไม่มี API key ใน env — จะ active เมื่อ Pong ใส่คีย์บน Vercel; fallback (ไม่มีคีย์) ปลอดภัย คงพฤติกรรม keyword เดิม
+- **ค้าง:** slot-filling (ดึงวัน/เวลา/ประเภทเติมฟอร์มผ่าน query param) + multi-turn dialog (`ai_conversations` state) + async (`line_webhook_events` processing) ยังไม่ทำ
 
 ### 2026-06-13 — flow เอกสาร + ลงเวลา ครบวงจร ✅ (impeccable)
 **เอกสาร (approval — ใช้ engine กลาง):**
