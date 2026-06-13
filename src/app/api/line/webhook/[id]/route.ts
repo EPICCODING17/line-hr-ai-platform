@@ -7,7 +7,7 @@ import { isChatPostback, startChat, onChatPostback, maybeCollectNote, type CfCtx
 import { infoFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
 import { actOnLeaveRequest, actOnOtRequest, actOnDocRequest } from "@/lib/approval";
 import { otRateLabel } from "@/lib/ot";
-import { classifyIntent, type IntentResult } from "@/lib/ai/intent";
+import { classifyIntent, aiEnabled, type IntentResult } from "@/lib/ai/intent";
 import { buildPrefill, encodePrefill } from "@/lib/ai/prefill";
 
 export const runtime = "nodejs";
@@ -214,33 +214,35 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
       const note = await maybeCollectNote(cf, text);
       if (note) return reply(note);
 
-      // keyword shortcuts so it works even before/without the rich menu.
-      // leave/OT open the in-chat quick form; others use their standard reply.
+      // AI FIRST when configured — it does intent + slot extraction (incl. relative
+      // dates like "พรุ่งนี้"). Keyword routing is the fallback only when AI is off,
+      // so a sentence like "พรุ่งนี้ขอลา" isn't short-circuited by the word "ลา".
+      if (aiEnabled()) {
+        await startLoading(ctx.accessToken, userId, 20);
+        const ai = await classifyIntent(text);
+        if (ai) {
+          await logIntent(admin, ctx.tenantId, emp.id, text, ai);
+          const ack = textMsg(ai.reply);
+          switch (ai.intent) {
+            case "leave": return reply([ack, ...await startChat(cf, "leave", ai.slots)]);
+            case "ot": return reply([ack, ...await startChat(cf, "ot", ai.slots)]);
+            case "document": {
+              const pre = buildPrefill(ai.intent, ai.slots);
+              return reply([ack, prefilledFormCard(ctx, ai.intent, pre ? encodePrefill(pre) : null)]);
+            }
+            case "attendance": return reply([ack, ...await actionReply(admin, ctx, emp, "checkin")]);
+            case "status": return reply([ack, ...await actionReply(admin, ctx, emp, "status")]);
+            default: return reply([ack]); // greeting / unknown
+          }
+        }
+      }
+
+      // keyword fallback (AI off or errored) — bare words open the quick form.
       if (/โอที|\bo\.?t\b/i.test(text)) return reply(await startChat(cf, "ot", {}));
       if (/ลงเวลา|เช็คอิน|เช็คเอาท์|check\s?in|check\s?out/i.test(text)) return reply(await actionReply(admin, ctx, emp, "checkin"));
       if (/เอกสาร|หนังสือรับรอง|สลิป|document/i.test(text)) return reply(await actionReply(admin, ctx, emp, "document"));
       if (/ลา|leave/i.test(text)) return reply(await startChat(cf, "leave", {}));
       if (/สถานะ|status/i.test(text)) return reply(await actionReply(admin, ctx, emp, "status"));
-
-      // natural-language understanding (Phase 4) — show the loading animation while
-      // the model thinks, then route. Falls through to the menu hint when AI is off.
-      await startLoading(ctx.accessToken, userId, 20);
-      const ai = await classifyIntent(text);
-      if (ai) {
-        await logIntent(admin, ctx.tenantId, emp.id, text, ai);
-        const ack = textMsg(ai.reply);
-        switch (ai.intent) {
-          case "leave": return reply([ack, ...await startChat(cf, "leave", ai.slots)]);
-          case "ot": return reply([ack, ...await startChat(cf, "ot", ai.slots)]);
-          case "document": {
-            const pre = buildPrefill(ai.intent, ai.slots);
-            return reply([ack, prefilledFormCard(ctx, ai.intent, pre ? encodePrefill(pre) : null)]);
-          }
-          case "attendance": return reply([ack, ...await actionReply(admin, ctx, emp, "checkin")]);
-          case "status": return reply([ack, ...await actionReply(admin, ctx, emp, "status")]);
-          default: return reply([ack]);
-        }
-      }
 
       return reply([textMsg(`สวัสดีคุณ${emp.first_name} 🙌\nเลือกบริการจากเมนูด้านล่าง หรือพิมพ์ “ลางาน” เพื่อเริ่มได้เลย`)]);
     }

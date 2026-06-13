@@ -137,7 +137,8 @@ async function renderCard(ctx: CfCtx, c: CfContext, lead = ""): Promise<LineMess
   const days = countWorkingDays(start, end, hol);
   const pre = encodePrefill({ start, end, reason: c.note ?? undefined });
   const fullUri = `${ctx.leaveBase}${ctx.leaveBase.includes("?") ? "&" : "?"}pre=${pre}`;
-  const text = `${lead}📝 ขอลางาน · ${c.typeName ?? "ลางาน"}\n📅 ตั้งแต่: ${start}\n📅 ถึง: ${end}  (รวม ${days} วันทำงาน)\n${noteLine(c.note)}\n\nแตะปุ่มด้านล่างเพื่อแก้ไข แล้วกด “ส่งคำขอ”`;
+  const warn = days === 0 ? "\n⚠️ ช่วงนี้ตรงวันหยุด/สุดสัปดาห์ — เลือกวันทำงานก่อนส่ง" : "";
+  const text = `${lead}📝 ขอลางาน · ${c.typeName ?? "ลางาน"}\n📅 ตั้งแต่: ${start}\n📅 ถึง: ${end}  (รวม ${days} วันทำงาน)${warn}\n${noteLine(c.note)}\n\nแตะปุ่มด้านล่างเพื่อแก้ไข แล้วกด “ส่งคำขอ”`;
   return qrMsg(text, [
     qrPicker("📅 ตั้งแต่", "cf:date", "date", start),
     qrPicker("📅 ถึง", "cf:end", "date", end),
