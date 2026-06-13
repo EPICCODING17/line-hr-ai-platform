@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/crypto";
 import { verifyLineSignature } from "@/lib/line/verify";
-import { replyMessage, textMsg, type LineMessage } from "@/lib/line/client";
+import { replyMessage, textMsg, startLoading, type LineMessage } from "@/lib/line/client";
+import { isChatPostback, startChat, onChatPostback, maybeCollectNote, type CfCtx } from "@/lib/line/chatflow";
 import { infoFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
 import { actOnLeaveRequest, actOnOtRequest, actOnDocRequest } from "@/lib/approval";
 import { otRateLabel } from "@/lib/ot";
@@ -17,7 +18,7 @@ type LineEvent = {
   replyToken?: string;
   source?: { userId?: string };
   message?: { type: string; text?: string };
-  postback?: { data?: string };
+  postback?: { data?: string; params?: { date?: string; time?: string; datetime?: string } };
 };
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -102,6 +103,13 @@ const FORM_META = {
   document: { color: "#745af2", emoji: "📄", title: "ขอเอกสาร", label: "เปิดฟอร์มขอเอกสาร", link: docLink },
 } as const;
 
+function cfCtx(admin: ReturnType<typeof createAdminClient>, ctx: Ctx, emp: { id: string }, userId: string): CfCtx {
+  return {
+    admin, tenantId: ctx.tenantId, acctId: ctx.acctId, lineUserId: userId, employeeId: emp.id,
+    otBase: otLink(ctx), leaveBase: leaveLink(ctx),
+  };
+}
+
 /** Open-form card whose deep-link carries an optional `pre` (AI-extracted slots). */
 function prefilledFormCard(ctx: Ctx, intent: "leave" | "ot" | "document", enc: string | null): LineMessage {
   const m = FORM_META[intent];
@@ -131,6 +139,11 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
     const data = ev.postback?.data ?? "";
     const emp = await findEmployeeByLine(admin, ctx.tenantId, userId);
     if (!emp) return reply([textMsg("กรุณาผูกบัญชีก่อน โดยพิมพ์รหัสพนักงาน (เช่น EMP-2026-0001)")]);
+
+    // in-chat form (date/time pickers, note, submit)
+    if (isChatPostback(data)) {
+      return reply(await onChatPostback(cfCtx(admin, ctx, emp, userId), data, ev.postback?.params ?? {}));
+    }
 
     // OT approval decisions (module-tagged to avoid colliding with leave)
     const otMatch = /^(otapprove|otreject):(.+)$/.exec(data);
@@ -195,22 +208,30 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
 
     const emp = await findEmployeeByLine(admin, ctx.tenantId, userId);
     if (emp) {
-      // keyword shortcuts so it works even before/without the rich menu
-      if (/โอที|\bo\.?t\b/i.test(text)) return reply(await actionReply(admin, ctx, emp, "ot"));
+      const cf = cfCtx(admin, ctx, emp, userId);
+
+      // if an in-chat form is waiting for a note, this text IS the note
+      const note = await maybeCollectNote(cf, text);
+      if (note) return reply(note);
+
+      // keyword shortcuts so it works even before/without the rich menu.
+      // leave/OT open the in-chat quick form; others use their standard reply.
+      if (/โอที|\bo\.?t\b/i.test(text)) return reply(await startChat(cf, "ot", {}));
       if (/ลงเวลา|เช็คอิน|เช็คเอาท์|check\s?in|check\s?out/i.test(text)) return reply(await actionReply(admin, ctx, emp, "checkin"));
       if (/เอกสาร|หนังสือรับรอง|สลิป|document/i.test(text)) return reply(await actionReply(admin, ctx, emp, "document"));
-      if (/ลา|leave/i.test(text)) return reply(await actionReply(admin, ctx, emp, "leave"));
+      if (/ลา|leave/i.test(text)) return reply(await startChat(cf, "leave", {}));
       if (/สถานะ|status/i.test(text)) return reply(await actionReply(admin, ctx, emp, "status"));
 
-      // natural-language understanding (Phase 4) — routes free-form text to a flow.
-      // Falls through to the menu hint when AI is not configured.
+      // natural-language understanding (Phase 4) — show the loading animation while
+      // the model thinks, then route. Falls through to the menu hint when AI is off.
+      await startLoading(ctx.accessToken, userId, 20);
       const ai = await classifyIntent(text);
       if (ai) {
         await logIntent(admin, ctx.tenantId, emp.id, text, ai);
         const ack = textMsg(ai.reply);
         switch (ai.intent) {
-          case "leave":
-          case "ot":
+          case "leave": return reply([ack, ...await startChat(cf, "leave", ai.slots)]);
+          case "ot": return reply([ack, ...await startChat(cf, "ot", ai.slots)]);
           case "document": {
             const pre = buildPrefill(ai.intent, ai.slots);
             return reply([ack, prefilledFormCard(ctx, ai.intent, pre ? encodePrefill(pre) : null)]);

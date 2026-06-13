@@ -581,6 +581,96 @@ export function docApprovalResultFlex(p: {
   return flex(p.approved ? "คำขอเอกสารได้รับอนุมัติ" : "คำขอเอกสารถูกปฏิเสธ", bubble(body, { size: "mega" }));
 }
 
+/* ---------- in-chat quick forms (datetime pickers) ---------- */
+
+function pickerBtn(label: string, data: string, mode: "date" | "time", initial?: string) {
+  return {
+    type: "button", style: "secondary", height: "sm", margin: "sm",
+    action: { type: "datetimepicker", label, data, mode, ...(initial ? { initial } : {}) },
+  };
+}
+function postBtn(label: string, data: string, opts: { style?: string; color?: string } = {}) {
+  return {
+    type: "button", height: "sm", margin: "sm", style: opts.style ?? "secondary", ...(opts.color ? { color: opts.color } : {}),
+    action: { type: "postback", label, data, displayText: label },
+  };
+}
+
+/** In-chat OT form — pick date/time and submit without opening LIFF. */
+export function chatOtFlex(p: {
+  date: string; start: string; end: string; note: string | null;
+  hours: number | string; rateLabel: string; fullUri?: string;
+}): LineMessage {
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: "#e8920c", paddingAll: "16px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "30px", height: "30px", backgroundColor: "#ffffff33", cornerRadius: "9px", justifyContent: "center", contents: [{ type: "text", text: "⏱️", size: "md", align: "center" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: "ขอทำ OT — กรอกในแชต", color: "#ffffff", weight: "bold", size: "md" },
+            { type: "text", text: "แตะเพื่อเลือก แล้วกดส่ง", color: "#fff4e0", size: "xxs" },
+          ] },
+        ],
+      },
+      {
+        type: "box", layout: "vertical", paddingAll: "14px", spacing: "none",
+        contents: [
+          pickerBtn(`📅 วันที่: ${p.date}`, "cf:date", "date", p.date),
+          pickerBtn(`🕐 เริ่ม: ${p.start}`, "cf:start", "time", p.start),
+          pickerBtn(`🕐 สิ้นสุด: ${p.end}`, "cf:end", "time", p.end),
+          postBtn(`✏️ หมายเหตุ: ${p.note ? p.note.slice(0, 18) : "(ไม่มี)"}`, "cf:note"),
+          { type: "separator", color: BORDER, margin: "lg" },
+          { type: "text", text: `รวม ${p.hours} ชม. · ${p.rateLabel}`, size: "sm", color: MUTED, align: "center", margin: "md" },
+        ],
+      },
+    ],
+  };
+  const footerBtns: object[] = [postBtn("✅ ส่งคำขอ OT", "cf:submit", { style: "primary", color: "#05be8a" })];
+  if (p.fullUri) footerBtns.push({ type: "button", height: "sm", margin: "sm", style: "link", action: { type: "uri", label: "เปิดฟอร์มเต็ม", uri: p.fullUri } });
+  footerBtns.push(postBtn("ยกเลิก", "cf:cancel", { style: "link" }));
+  const footer = { type: "box", layout: "vertical", paddingAll: "14px", paddingTop: "0px", contents: footerBtns };
+  return flex("ขอทำ OT — กรอกในแชต", bubble(body, { footer, size: "mega" }));
+}
+
+/** In-chat leave form — pick dates and submit without opening LIFF. */
+export function chatLeaveFlex(p: {
+  typeName: string; start: string; end: string; note: string | null;
+  days: number | string; fullUri?: string;
+}): LineMessage {
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: "#3c8cf3", paddingAll: "16px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "30px", height: "30px", backgroundColor: "#ffffff33", cornerRadius: "9px", justifyContent: "center", contents: [{ type: "text", text: "📝", size: "md", align: "center" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: "ขอลางาน — กรอกในแชต", color: "#ffffff", weight: "bold", size: "md" },
+            { type: "text", text: `ประเภท: ${p.typeName}`, color: "#e8f1fe", size: "xxs" },
+          ] },
+        ],
+      },
+      {
+        type: "box", layout: "vertical", paddingAll: "14px", spacing: "none",
+        contents: [
+          pickerBtn(`📅 ตั้งแต่: ${p.start}`, "cf:date", "date", p.start),
+          pickerBtn(`📅 ถึง: ${p.end}`, "cf:end", "date", p.end),
+          postBtn(`✏️ หมายเหตุ: ${p.note ? p.note.slice(0, 18) : "(ไม่มี)"}`, "cf:note"),
+          { type: "separator", color: BORDER, margin: "lg" },
+          { type: "text", text: `รวม ${p.days} วันทำงาน`, size: "sm", color: MUTED, align: "center", margin: "md" },
+        ],
+      },
+    ],
+  };
+  const footerBtns: object[] = [postBtn("✅ ส่งคำขอลา", "cf:submit", { style: "primary", color: "#05be8a" })];
+  if (p.fullUri) footerBtns.push({ type: "button", height: "sm", margin: "sm", style: "link", action: { type: "uri", label: "เปิดฟอร์มเต็ม (เปลี่ยนประเภท)", uri: p.fullUri } });
+  footerBtns.push(postBtn("ยกเลิก", "cf:cancel", { style: "link" }));
+  const footer = { type: "box", layout: "vertical", paddingAll: "14px", paddingTop: "0px", contents: footerBtns };
+  return flex("ขอลางาน — กรอกในแชต", bubble(body, { footer, size: "mega" }));
+}
+
 /* ---------- Attendance card ---------- */
 
 /** Check-in / check-out confirmation (sent after a LIFF clock action). */

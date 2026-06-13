@@ -25,3 +25,15 @@ export async function pushMessage(accessToken: string, to: string, messages: Lin
 }
 
 export const textMsg = (text: string): LineMessage => ({ type: "text", text });
+
+/** Show the animated "…" loading indicator in a 1:1 chat (5–60s, multiple of 5). */
+export async function startLoading(accessToken: string, chatId: string, seconds = 10) {
+  const loadingSeconds = Math.min(60, Math.max(5, Math.round(seconds / 5) * 5));
+  try {
+    await fetch(`${API}/chat/loading/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ chatId, loadingSeconds }),
+    });
+  } catch { /* best-effort — never block the reply */ }
+}
