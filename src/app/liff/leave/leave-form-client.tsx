@@ -294,7 +294,7 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props
         </div>
         {formError && <p className="form-error" role="alert">{formError}</p>}
         <button type="button" className="liff-submit" disabled={submitting || totalDays <= 0} onClick={onSubmit}>
-          {submitting ? "กำลังส่ง…" : "ส่งคำขอลา"}
+          {submitting ? (<><span className="liff-spin" aria-hidden />กำลังส่ง…</>) : "ส่งคำขอลา"}
         </button>
       </footer>
     </main>
