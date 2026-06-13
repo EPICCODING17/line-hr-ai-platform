@@ -41,6 +41,15 @@
 
 ## บันทึกรายวัน
 
+### 2026-06-13 — UX แชต: "AI กำลังตอบ" + กรอกฟอร์มในแชต ✅
+- **Loading indicator**: `startLoading()` (`line/client.ts`) เรียก `chat/loading/start` ของ LINE → โชว์ "…" ระหว่าง classify (เฉพาะ path AI, 20s) → ผู้ใช้รู้ว่ากำลังตอบ
+- **In-chat quick form** (`src/lib/line/chatflow.ts`): เลือกวัน/เวลาด้วย **LINE datetimepicker** + หมายเหตุ + กดส่ง **โดยไม่ต้องเปิด LIFF** — state เก็บใน `ai_conversations` (multi-turn), submit reuse `submitOtRequest`/`submitLeaveRequest`
+  - การ์ด `chatOtFlex`/`chatLeaveFlex` (flex.ts): ปุ่ม datetimepicker (date/time) + ✏️หมายเหตุ + ✅ส่ง + ยกเลิก + "เปิดฟอร์มเต็ม" (ลิงก์ LIFF พร้อม pre)
+  - postback `cf:date|start|end|note|submit|cancel` → `onChatPostback`; พิมพ์ข้อความตอน awaitingNote → `maybeCollectNote`
+  - **พิมพ์** "ลา"/"โอที" หรือ AI จัด intent leave/ot → เปิด in-chat form (เมนู rich menu ยังเปิดฟอร์มเต็มเหมือนเดิม)
+- **verify production:** จำลอง postback ครบวงจร (text→conv→เลือกเวลา×2→หมายเหตุ→ยกเลิก) state อัปเดตถูกทุกสเต็ป ✅; submit ใช้ action ที่ verify แล้ว
+- **ค้าง:** การ์ด in-chat ยังไม่ได้ดูตาจริง (datetimepicker เห็นใน LINE เท่านั้น headless ถ่ายไม่ได้) — รอ Pong ลองในมือถือ; prompt caching ลด latency loading ภายหลัง
+
 ### 2026-06-13 — Phase 4 เริ่ม: AI intent routing ✅ (Claude)
 - **`src/lib/ai/intent.ts`** — `classifyIntent(text)` ยิง Claude 1 call (`@anthropic-ai/sdk`, model `claude-opus-4-8` ค่าเริ่ม, override ได้ด้วย `ANTHROPIC_MODEL` เช่น haiku), **structured output** (`output_config.format` json_schema) + `effort: "low"` → `{intent, confidence, reply}`. 7 intent: leave/ot/document/attendance/status/greeting/unknown. **no-op คืน null ถ้าไม่มี `ANTHROPIC_API_KEY`** (บอตยัง routing ด้วย keyword ได้)
 - **wire webhook**: ข้อความ free-form ที่ keyword จับไม่ได้ → `classifyIntent` → ตอบ ack (reply ไทยจาก AI) + เปิดฟอร์มตาม intent (leave/ot/document/attendance/status) หรือข้อความช่วยเหลือ (greeting/unknown). log ลง `ai_intent_logs` (intent/confidence/model/tokens/latency, best-effort)
