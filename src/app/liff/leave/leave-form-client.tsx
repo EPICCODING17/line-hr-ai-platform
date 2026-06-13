@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { LiffLoading, LeaveLoadingIcon } from "../liff-loading";
 import { resolveEmployee, submitLeaveRequest, type LeaveBalance } from "./actions";
 
 export type LeaveTypeOption = {
@@ -326,17 +327,7 @@ function CategoryIcon({ category }: { category: string }) {
 }
 
 function Loading() {
-  return (
-    <main className="liff-shell">
-      <div className="sk sk-title" />
-      <div className="sk sk-line" />
-      <div className="sk-grid">
-        <div className="sk sk-chip" /><div className="sk sk-chip" /><div className="sk sk-chip" /><div className="sk sk-chip" />
-      </div>
-      <div className="sk sk-block" />
-      <div className="sk sk-block" />
-    </main>
-  );
+  return <LiffLoading title="กำลังเตรียมฟอร์มลา" sub="แป๊บเดียว กำลังดึงข้อมูลของคุณ" icon={<LeaveLoadingIcon />} />;
 }
 
 function NeedLink() {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   OT_RATE_TYPES, OT_RATE_LABEL, autoRateType, otHours, parseHM, fmtHours, type OtRateType,
 } from "@/lib/ot";
+import { LiffLoading, OtLoadingIcon } from "../liff-loading";
 import { resolveOtEmployee, submitOtRequest } from "./actions";
 
 export type OtPolicyInfo = {
@@ -321,17 +322,7 @@ function initials(first: string, last: string) {
 }
 
 function Loading() {
-  return (
-    <main className="liff-shell">
-      <div className="sk sk-title" />
-      <div className="sk sk-line" />
-      <div className="sk sk-block" />
-      <div className="sk-grid">
-        <div className="sk sk-chip" /><div className="sk sk-chip" /><div className="sk sk-chip" /><div className="sk sk-chip" />
-      </div>
-      <div className="sk sk-block" />
-    </main>
-  );
+  return <LiffLoading title="กำลังเตรียมฟอร์ม OT" sub="แป๊บเดียว กำลังดึงข้อมูลของคุณ" icon={<OtLoadingIcon />} />;
 }
 
 function NeedLink() {
