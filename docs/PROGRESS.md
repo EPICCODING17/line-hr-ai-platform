@@ -5,20 +5,42 @@
 
 ---
 
-## สถานะรวม
-- **Phase ปัจจุบัน:** 4 flow ครบ (ลา/OT/เอกสาร/ลงเวลา) + **Phase 4 เริ่ม: AI intent routing ✅** (พิมพ์ภาษาธรรมชาติ → Claude จัด intent → เปิดฟอร์มที่ใช่)
-- **🔴 ค้าง (Pong):** ใส่ `ANTHROPIC_API_KEY` ใน Vercel env เพื่อเปิด AI (ไม่ใส่ = บอตยังทำงานด้วย keyword/เมนูเหมือนเดิม)
-- **ถัดไป:** AI slot-filling (ดึงวัน/เวลา/ประเภท เติมฟอร์มอัตโนมัติ) + multi-turn (ai_conversations); รายงาน/payroll (Phase 5)
-- **Supabase:** Singapore (aws-1 pooler) · migrations ถึง **0009** · Demo Co seeded (6 พนักงาน, admin user) · OT policy/rates/workflow seed พร้อมจาก `seed_tenant_defaults`
+## สถานะรวม (สรุปล่าสุด)
+**ระบบใช้งานได้ครบทุก flow บน production แล้ว** — ทั้งทาง LINE (rich menu / keyword / พิมพ์ภาษาธรรมชาติ) และ dashboard
+
+**ฟีเจอร์ที่ live ตอนนี้:**
+- **4 flow ครบวงจร:** ลา · OT · เอกสาร (ใช้ approval engine กลาง manager→hr) · ลงเวลา (time-clock) — มี LIFF form + dashboard + อนุมัติผ่าน LINE + ใบเสร็จ Flex
+- **AI (Phase 4) — เปิดใช้แล้ว** (`ANTHROPIC_API_KEY` ใส่ใน Vercel แล้ว, model **claude-haiku-4-5**): พิมพ์ภาษาธรรมชาติ → จัด intent + **ดึง slots (วัน/เวลา/ประเภท, แปลง "พรุ่งนี้" เป็นวันที่จริง)** → เปิดฟอร์มที่ใช่/เติมค่าให้
+- **กรอกในแชตจบเลย** (ไม่ต้องเปิด LIFF): พิมพ์ "ลา"/"โอที" หรือพูดธรรมชาติ → **quick-reply** (datetimepicker เลือกวัน/เวลา + หมายเหตุ + ส่ง) state ใน `ai_conversations`
+- **"AI กำลังตอบ"** loading animation ระหว่าง classify
+- เปิดฟอร์มเต็มผ่าน LIFF ได้ทุก flow (ปุ่ม rich menu/ลิงก์ในแชต) — deep-link in-scope ด้วย rewrite `/liff/leave/<form>`
+
+**สำคัญ — ลำดับการ route ข้อความ (text จากพนักงานที่ผูกบัญชีแล้ว):** maybeCollectNote → **AI ก่อน (ถ้ามี key)** → keyword fallback → เมนู
+
+- **Supabase:** Singapore (aws-1 pooler) · migrations ถึง **0009** · Demo Co seeded (6 พนักงาน, admin user) · policy/rates/doc-types/workflow พร้อมจาก `seed_tenant_defaults`
 - **Login dashboard:** admin@demo.co / Demo!2026
+- **ถัดไป (optional):** prompt caching ลด latency AI · multi-turn AI ถามต่อเมื่อข้อมูลไม่ครบ · generate ไฟล์เอกสารจริง (PDF) · GPS geofence ลงเวลา · Phase 5 (Payroll/Billing/PDPA)
 - **อัปเดตล่าสุด:** 2026-06-13
+
+### 🗺️ แผนผังโค้ดสำคัญ
+- **Webhook LINE:** `src/app/api/line/webhook/[id]/route.ts` — รับ event, route (note→AI→keyword→menu), postback (อนุมัติ `(ot/doc)approve|reject`, in-chat `cf:*`)
+- **Approval engine กลาง:** `src/lib/approval/` (core + leave/ot/document descriptors + index)
+- **AI:** `src/lib/ai/intent.ts` (classify+slots, Haiku, structured output) · `src/lib/ai/prefill.ts` (slots→pre param base64url)
+- **In-chat form:** `src/lib/line/chatflow.ts` (state ใน ai_conversations, quick-reply, submit reuse actions)
+- **LINE client/cards:** `src/lib/line/client.ts` (reply/push/startLoading) · `src/lib/line/flex.ts` (การ์ดทั้งหมด)
+- **LIFF forms:** `src/app/liff/{leave,ot,document,checkin}/` (page server + *-client + actions) · `liff.css` · `liff-loading.tsx`
+- **Dashboard:** `src/app/dashboard/{leave,ot,documents,attendance,employees,departments,positions}/`
+- **Helpers:** `src/lib/ot.ts` · `src/lib/attendance.ts` · `src/lib/crypto.ts` · `src/lib/supabase/admin.ts` · `src/components/app-shell.tsx` (sidebar)
+- **Scripts:** `setup-rich-menu.mjs` · `register-line.mjs` · `seed-demo.mjs` · `seed-org.mjs`
+- **เทคนิคเทสบน prod (ไม่ push หาคนจริง):** ยิง synthetic webhook event ลายเซ็นถูก + replyToken ปลอม "0"×32 → logic ทำงาน+เขียน DB แต่ reply fail (ไม่มีข้อความหลุด); ตรวจ Flex/quick-reply ด้วย temp route push แล้วเช็ก HTTP 200
 
 ### 🌐 Production (โดเมนถาวร — ไม่ต้องเปลี่ยนอีก)
 - **GitHub:** `https://github.com/EPICCODING17/line-hr-ai-platform` (private) · workflow: แก้โค้ด → `git push` → Vercel auto-deploy
 - **Vercel:** `https://line-hr-ai-platform.vercel.app`
 - **Webhook URL (Messaging API channel):** `https://line-hr-ai-platform.vercel.app/api/line/webhook/d3684f40-f566-4604-b5bf-262dc4f443cd` ✅ verified
 - **LIFF endpoint (LINE Login channel):** `https://line-hr-ai-platform.vercel.app/liff/leave?acct=d3684f40-f566-4604-b5bf-262dc4f443cd` · LIFF ID `2010383091-kBSUiU9b`
-- **Vercel env (4 ตัว):** NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY, APP_ENCRYPTION_KEY
+- **Vercel env:** NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY, APP_ENCRYPTION_KEY, **ANTHROPIC_API_KEY** (เปิด AI แล้ว) · ANTHROPIC_MODEL (ไม่ใส่ = haiku)
+- **Rich menu ปัจจุบัน:** 6 ปุ่ม uri/postback (ลา/OT/ลงเวลา/เอกสาร = เปิด LIFF ตรง · สถานะ/ติดต่อ = postback); ถ้าแก้ปุ่มต้องรัน `node scripts/setup-rich-menu.mjs`
 - tunnel/cloudflared **เลิกใช้แล้ว** (ใช้แค่ตอน dev local เท่านั้น)
 
 ### 2026-06-12 — Deploy GitHub + Vercel ✅
@@ -32,9 +54,9 @@
 - [x] **Phase 0** — Foundation DB + RLS
 - [x] **Phase 1** — Employee Core + Web Dashboard (CRUD)
 - [x] **Phase 2** — LINE + LIFF แบบ structured (Rich Menu → form, ยังไม่มี AI)
-- [x] **Phase 3** — Approval Workflow engine (configurable) + Notification — **ลา + OT ใช้ engine กลางตัวเดียว**
-- [ ] **Phase 3.x** — flow ที่เหลือบน engine เดิม: ลงเวลา (attendance) · เอกสาร (document)
-- [~] **Phase 4** — AI layer: **intent routing + slot-filling ทำแล้ว** (NL → intent + ดึงวัน/เวลา/ประเภท → เติมฟอร์ม); เหลือ multi-turn dialog
+- [x] **Phase 3** — Approval Workflow engine (configurable) + Notification — ลา/OT/เอกสาร ใช้ engine กลางตัวเดียว
+- [x] **Phase 3.x** — flow ที่เหลือ: ลงเวลา (time-clock) · เอกสาร (approval) ✅
+- [x] **Phase 4** — AI layer: intent routing + slot-filling + กรอกในแชต (quick-reply) + loading ✅ *(เหลือ optional: multi-turn ถามต่อ, prompt caching)*
 - [ ] **Phase 5** — Payroll + Billing + PDPA
 
 ---
