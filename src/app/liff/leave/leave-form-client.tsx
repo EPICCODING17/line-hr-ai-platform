@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { LiffLoading, LeaveLoadingIcon } from "../liff-loading";
+import { LiffLoading, LeaveLoadingIcon, OtLoadingIcon } from "../liff-loading";
 import { resolveEmployee, submitLeaveRequest, type LeaveBalance } from "./actions";
 
 export type LeaveTypeOption = {
@@ -17,6 +17,9 @@ type Props = {
   liffId: string | null;
   devUserId: string | null;
   leaveTypes: LeaveTypeOption[];
+  /** Set when LINE loaded this endpoint only to redirect to another form
+   *  (liff.state). We then show a splash for the destination, not the leave form. */
+  transitTarget?: string | null;
 };
 
 const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
@@ -65,7 +68,7 @@ function loadScript(src: string) {
   });
 }
 
-export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props) {
+export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes, transitTarget }: Props) {
   const [phase, setPhase] = useState<Phase>({ k: "init" });
   const [userId, setUserId] = useState<string | null>(null);
   const [employee, setEmployee] = useState<{ firstName: string; lastName: string; code: string } | null>(null);
@@ -91,6 +94,11 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props
     let alive = true;
     (async () => {
       try {
+        // Endpoint transit: just init LIFF so it redirects to the real form.
+        if (transitTarget) {
+          if (liffId) { await loadScript(LIFF_SDK); await window.liff.init({ liffId }); }
+          return;
+        }
         let uid = devUserId;
         if (!uid) {
           if (!liffId) {
@@ -127,7 +135,7 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props
     return () => {
       alive = false;
     };
-  }, [acctId, liffId, devUserId]);
+  }, [acctId, liffId, devUserId, transitTarget]);
 
   const selectedType = useMemo(() => leaveTypes.find((t) => t.id === typeId) ?? null, [leaveTypes, typeId]);
   const selectedBalance = typeId ? balances.get(typeId) : undefined;
@@ -158,6 +166,13 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props
   }
 
   // ---------- render ----------
+  // Endpoint transit → splash for the destination form, never the leave form.
+  if (transitTarget) {
+    const ot = transitTarget.toLowerCase().includes("ot");
+    return ot
+      ? <LiffLoading title="กำลังเตรียมฟอร์ม OT" sub="แป๊บเดียว กำลังดึงข้อมูลของคุณ" icon={<OtLoadingIcon />} />
+      : <LiffLoading title="กำลังเปิดฟอร์ม…" sub="แป๊บเดียว กำลังดึงข้อมูลของคุณ" />;
+  }
   if (phase.k === "init") return <Loading />;
   if (phase.k === "needlink") return <NeedLink />;
   if (phase.k === "error") return <ErrorState msg={phase.msg} />;

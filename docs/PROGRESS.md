@@ -65,6 +65,13 @@
 - **ส่งสำเร็จ:** **หน้า success เต็มจอ** (checkmark วาด + confetti) — คงไว้ทุกฟอร์ม
 - ทำครบทั้ง leave + ot แล้ว; ฟอร์มถัดไปให้ reuse pattern เดียวกัน (3 จังหวะ splash → splash → success ล้วนเต็มจอ)
 
+#### แก้บั๊ก: กดเมนู OT แล้วเห็น "เตรียมฟอร์มลา" แวบก่อน
+- **อาการ:** กดปุ่ม OT → เห็น splash "กำลังเตรียมฟอร์มลา" ก่อน แล้วค่อยเป็นฟอร์ม OT
+- **สาเหตุ:** LIFF endpoint = `/liff/leave` → เปิด `liff.line.me/{id}/ot` LINE จะโหลดหน้า endpoint (ฟอร์มลา) ก่อนพร้อม `?liff.state=/ot` แล้ว `liff.init()` ค่อย redirect ไป `/liff/leave/ot` (→ rewrite → OT) — หน้าลาเลยโผล่แวบ
+- **Fix (ไม่ต้องแตะ console):** `leave/page.tsx` อ่าน `liff.state` จาก searchParams; ถ้าเป็น transit ไปฟอร์มอื่น → `LeaveFormClient` แสดง `LiffLoading` ของ**ปลายทาง** (OT=นาฬิกา "กำลังเตรียมฟอร์ม OT") แทนฟอร์มลา + effect แค่ `liff.init()` เพื่อ redirect → splash ต่อเนื่องไหลลื่นถึงฟอร์ม OT (ไม่เห็น "ลา")
+- **verify:** `/liff/leave?...&liff.state=/ot` เรนเดอร์ splash OT (ไม่มี type-grid/ลา); เปิดลาตรงๆ + `liff.state=/` ยังเป็นฟอร์มลาปกติ
+- **เผื่ออนาคต:** ฟอร์มอื่น (document/checkin) ก็ได้ splash ปลายทางอัตโนมัติ (เช็ก "non-leave liff.state") — เพิ่ม mapping ไอคอน/ข้อความใน `leave-form-client` ได้
+
 ### 2026-06-13 — Phase 3: Approval Workflow (ลา) ✅
 - **`src/lib/approval.ts`** — engine: `instantiateLeaveApproval` (อ่าน workflow leave → สร้าง `leave_approval_steps` resolve approver: manager→`manager_id`, role→หาคน role, specific_user, department_head; unresolved=skip; set `workflow_id`+`current_step`; แจ้ง approver แรก) + `actOnLeaveRequest` (approve→เลื่อน step ถัดไป/จบ, reject→จบ; แจ้งพนักงาน/approver ถัดไป; กันทำซ้ำ; `requireApproverId` ฝั่ง LINE)
 - **Flex การ์ดอนุมัติ** (`flex.ts`): `approvalRequestFlex` (หัวส้ม + ปุ่ม postback approve/reject) + `approvalResultFlex` (เขียว/แดง ผลถึงพนักงาน)

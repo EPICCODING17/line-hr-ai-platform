@@ -6,9 +6,11 @@ export const dynamic = "force-dynamic";
 export default async function LiffLeavePage({
   searchParams,
 }: {
-  searchParams: Promise<{ acct?: string; u?: string }>;
+  searchParams: Promise<{ acct?: string; u?: string; "liff.state"?: string }>;
 }) {
-  const { acct, u } = await searchParams;
+  const sp = await searchParams;
+  const { acct, u } = sp;
+  const liffState = sp["liff.state"];
 
   if (!acct) {
     return <FatalNotice title="ลิงก์ไม่ถูกต้อง" detail="ไม่พบรหัสช่องทาง (acct) — กรุณาเปิดจากเมนูในแชต LINE" />;
@@ -25,20 +27,29 @@ export default async function LiffLeavePage({
     return <FatalNotice title="ช่องทางไม่พร้อมใช้งาน" detail="บริษัทนี้ยังไม่ได้เปิดใช้บริการ HR ผ่าน LINE" />;
   }
 
-  const { data: types } = await admin
-    .from("leave_types")
-    .select("id, name, color, category, requires_attachment")
-    .eq("tenant_id", account.tenant_id)
-    .is("deleted_at", null)
-    .order("name");
+  // This page is the LIFF endpoint. When a button opens liff.line.me/{id}/<form>,
+  // LINE loads us first with liff.state=/<form> then liff.init() redirects there.
+  // On that transit, render a splash matching the destination (not the leave form)
+  // so the user never sees "เตรียมฟอร์มลา" before another form appears.
+  const transitTarget =
+    liffState && liffState !== "/" && !liffState.toLowerCase().includes("leave") ? liffState : null;
 
-  const options: LeaveTypeOption[] = (types ?? []).map((t) => ({
-    id: t.id as string,
-    name: t.name as string,
-    color: (t.color as string) ?? null,
-    category: t.category as string,
-    requiresAttachment: Boolean(t.requires_attachment),
-  }));
+  let options: LeaveTypeOption[] = [];
+  if (!transitTarget) {
+    const { data: types } = await admin
+      .from("leave_types")
+      .select("id, name, color, category, requires_attachment")
+      .eq("tenant_id", account.tenant_id)
+      .is("deleted_at", null)
+      .order("name");
+    options = (types ?? []).map((t) => ({
+      id: t.id as string,
+      name: t.name as string,
+      color: (t.color as string) ?? null,
+      category: t.category as string,
+      requiresAttachment: Boolean(t.requires_attachment),
+    }));
+  }
 
   return (
     <LeaveFormClient
@@ -46,6 +57,7 @@ export default async function LiffLeavePage({
       liffId={(account.liff_id as string) ?? null}
       devUserId={u ?? null}
       leaveTypes={options}
+      transitTarget={transitTarget}
     />
   );
 }
