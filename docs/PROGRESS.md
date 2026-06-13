@@ -59,6 +59,12 @@
 - **verify:** prod `/liff/leave/ot?acct=` 200 เรนเดอร์ `OtFormClient`; live rich menu OT = `uri https://liff.line.me/2010383091-kBSUiU9b/ot`; re-run setup-rich-menu สำเร็จ (`richmenu-56105b…`). **เหลือยืนยันบนมือถือจริงโดย Pong**
 - **เผื่ออนาคต:** ฟอร์มใหม่ (ลงเวลา/เอกสาร) เปิดผ่าน `liff.line.me/{id}/<form>` + เพิ่ม rewrite `/liff/leave/<form>` → `/liff/<form>` ได้เลยโดยไม่ต้องลงทะเบียน LIFF ใหม่
 
+#### มาตรฐาน LIFF loading/feedback (ใช้ทุกฟอร์ม + ของใหม่ในอนาคต)
+- **เปิดเข้ามาครั้งแรก:** splash เต็มจอ — `LiffLoading` (`src/app/liff/liff-loading.tsx`): tile gradient แบรนด์หายใจ + ripple ring + ไอคอนตามบริบท (ลา=ปฏิทิน, OT=นาฬิกา) + reduced-motion
+- **กดส่ง (กำลังส่ง):** **ห้ามเต็มจอ** — คงฟอร์มไว้ แค่ปุ่มขึ้น `.liff-spin` (spinner ในปุ่ม) + disabled กันกดซ้ำ. `phase` ยังเป็น `"ready"`, ใช้แค่ flag `submitting`
+- **ส่งสำเร็จ:** **หน้า success เต็มจอ** (checkmark วาด + confetti) — คงไว้ทุกฟอร์ม
+- ทำครบทั้ง leave + ot แล้ว (commit `ba386a3`); ฟอร์มถัดไปให้ reuse pattern เดียวกัน
+
 ### 2026-06-13 — Phase 3: Approval Workflow (ลา) ✅
 - **`src/lib/approval.ts`** — engine: `instantiateLeaveApproval` (อ่าน workflow leave → สร้าง `leave_approval_steps` resolve approver: manager→`manager_id`, role→หาคน role, specific_user, department_head; unresolved=skip; set `workflow_id`+`current_step`; แจ้ง approver แรก) + `actOnLeaveRequest` (approve→เลื่อน step ถัดไป/จบ, reject→จบ; แจ้งพนักงาน/approver ถัดไป; กันทำซ้ำ; `requireApproverId` ฝั่ง LINE)
 - **Flex การ์ดอนุมัติ** (`flex.ts`): `approvalRequestFlex` (หัวส้ม + ปุ่ม postback approve/reject) + `approvalResultFlex` (เขียว/แดง ผลถึงพนักงาน)
