@@ -582,17 +582,59 @@ export function docApprovalResultFlex(p: {
 }
 
 /* ---------- in-chat quick forms (datetime pickers) ---------- */
+// NOTE: LINE limits an action `label` to 20 chars — keep button labels short and
+// fixed; show the current value in a separate text row above each button.
 
-function pickerBtn(label: string, data: string, mode: "date" | "time", initial?: string) {
+function fieldRow(label: string, value: string, btnLabel: string, data: string, mode: "date" | "time", initial: string) {
   return {
-    type: "button", style: "secondary", height: "sm", margin: "sm",
-    action: { type: "datetimepicker", label, data, mode, ...(initial ? { initial } : {}) },
+    type: "box", layout: "horizontal", alignItems: "center", margin: "md", spacing: "sm",
+    contents: [
+      { type: "box", layout: "vertical", flex: 1, contents: [
+        { type: "text", text: label, size: "xxs", color: MUTED },
+        { type: "text", text: value, size: "md", color: INK, weight: "bold" },
+      ] },
+      { type: "button", style: "secondary", height: "sm", flex: 0, color: "#eef2f7",
+        action: { type: "datetimepicker", label: btnLabel, data, mode, initial } },
+    ],
   };
 }
 function postBtn(label: string, data: string, opts: { style?: string; color?: string } = {}) {
   return {
     type: "button", height: "sm", margin: "sm", style: opts.style ?? "secondary", ...(opts.color ? { color: opts.color } : {}),
     action: { type: "postback", label, data, displayText: label },
+  };
+}
+function noteRow(note: string | null) {
+  return {
+    type: "box", layout: "horizontal", alignItems: "center", margin: "md", spacing: "sm",
+    contents: [
+      { type: "box", layout: "vertical", flex: 1, contents: [
+        { type: "text", text: "หมายเหตุ", size: "xxs", color: MUTED },
+        { type: "text", text: note ? note : "—", size: "sm", color: note ? INK : FAINT, wrap: true },
+      ] },
+      { type: "button", style: "secondary", height: "sm", flex: 0, color: "#eef2f7",
+        action: { type: "postback", label: "เพิ่ม", data: "cf:note", displayText: "เพิ่มหมายเหตุ" } },
+    ],
+  };
+}
+
+function chatFooter(submitLabel: string, fullUri?: string, fullLabel?: string) {
+  const btns: object[] = [postBtn(submitLabel, "cf:submit", { style: "primary", color: "#05be8a" })];
+  if (fullUri) btns.push({ type: "button", height: "sm", margin: "sm", style: "link", action: { type: "uri", label: fullLabel ?? "เปิดฟอร์มเต็ม", uri: fullUri } });
+  btns.push(postBtn("ยกเลิก", "cf:cancel", { style: "link" }));
+  return { type: "box", layout: "vertical", paddingAll: "14px", paddingTop: "0px", contents: btns };
+}
+
+function chatHeader(color: string, emoji: string, title: string, sub: string) {
+  return {
+    type: "box", layout: "horizontal", backgroundColor: color, paddingAll: "16px", spacing: "md",
+    contents: [
+      { type: "box", layout: "vertical", flex: 0, width: "30px", height: "30px", backgroundColor: "#ffffff33", cornerRadius: "9px", justifyContent: "center", contents: [{ type: "text", text: emoji, size: "md", align: "center" }] },
+      { type: "box", layout: "vertical", justifyContent: "center", contents: [
+        { type: "text", text: title, color: "#ffffff", weight: "bold", size: "md" },
+        { type: "text", text: sub, color: "#ffffffcc", size: "xxs", wrap: true },
+      ] },
+    ],
   };
 }
 
@@ -604,34 +646,21 @@ export function chatOtFlex(p: {
   const body = {
     type: "box", layout: "vertical", paddingAll: "0px",
     contents: [
-      {
-        type: "box", layout: "horizontal", backgroundColor: "#e8920c", paddingAll: "16px", spacing: "md",
-        contents: [
-          { type: "box", layout: "vertical", flex: 0, width: "30px", height: "30px", backgroundColor: "#ffffff33", cornerRadius: "9px", justifyContent: "center", contents: [{ type: "text", text: "⏱️", size: "md", align: "center" }] },
-          { type: "box", layout: "vertical", justifyContent: "center", contents: [
-            { type: "text", text: "ขอทำ OT — กรอกในแชต", color: "#ffffff", weight: "bold", size: "md" },
-            { type: "text", text: "แตะเพื่อเลือก แล้วกดส่ง", color: "#fff4e0", size: "xxs" },
-          ] },
-        ],
-      },
+      chatHeader("#e8920c", "⏱️", "ขอทำ OT — กรอกในแชต", "แตะเลือกวัน/เวลา แล้วกดส่ง"),
       {
         type: "box", layout: "vertical", paddingAll: "14px", spacing: "none",
         contents: [
-          pickerBtn(`📅 วันที่: ${p.date}`, "cf:date", "date", p.date),
-          pickerBtn(`🕐 เริ่ม: ${p.start}`, "cf:start", "time", p.start),
-          pickerBtn(`🕐 สิ้นสุด: ${p.end}`, "cf:end", "time", p.end),
-          postBtn(`✏️ หมายเหตุ: ${p.note ? p.note.slice(0, 18) : "(ไม่มี)"}`, "cf:note"),
+          fieldRow("วันที่", p.date, "เลือกวัน", "cf:date", "date", p.date),
+          fieldRow("เวลาเริ่ม", p.start, "เลือกเวลา", "cf:start", "time", p.start),
+          fieldRow("เวลาสิ้นสุด", p.end, "เลือกเวลา", "cf:end", "time", p.end),
+          noteRow(p.note),
           { type: "separator", color: BORDER, margin: "lg" },
           { type: "text", text: `รวม ${p.hours} ชม. · ${p.rateLabel}`, size: "sm", color: MUTED, align: "center", margin: "md" },
         ],
       },
     ],
   };
-  const footerBtns: object[] = [postBtn("✅ ส่งคำขอ OT", "cf:submit", { style: "primary", color: "#05be8a" })];
-  if (p.fullUri) footerBtns.push({ type: "button", height: "sm", margin: "sm", style: "link", action: { type: "uri", label: "เปิดฟอร์มเต็ม", uri: p.fullUri } });
-  footerBtns.push(postBtn("ยกเลิก", "cf:cancel", { style: "link" }));
-  const footer = { type: "box", layout: "vertical", paddingAll: "14px", paddingTop: "0px", contents: footerBtns };
-  return flex("ขอทำ OT — กรอกในแชต", bubble(body, { footer, size: "mega" }));
+  return flex("ขอทำ OT — กรอกในแชต", bubble(body, { footer: chatFooter("✅ ส่งคำขอ OT", p.fullUri), size: "mega" }));
 }
 
 /** In-chat leave form — pick dates and submit without opening LIFF. */
@@ -642,33 +671,20 @@ export function chatLeaveFlex(p: {
   const body = {
     type: "box", layout: "vertical", paddingAll: "0px",
     contents: [
-      {
-        type: "box", layout: "horizontal", backgroundColor: "#3c8cf3", paddingAll: "16px", spacing: "md",
-        contents: [
-          { type: "box", layout: "vertical", flex: 0, width: "30px", height: "30px", backgroundColor: "#ffffff33", cornerRadius: "9px", justifyContent: "center", contents: [{ type: "text", text: "📝", size: "md", align: "center" }] },
-          { type: "box", layout: "vertical", justifyContent: "center", contents: [
-            { type: "text", text: "ขอลางาน — กรอกในแชต", color: "#ffffff", weight: "bold", size: "md" },
-            { type: "text", text: `ประเภท: ${p.typeName}`, color: "#e8f1fe", size: "xxs" },
-          ] },
-        ],
-      },
+      chatHeader("#3c8cf3", "📝", "ขอลางาน — กรอกในแชต", `ประเภท: ${p.typeName}`),
       {
         type: "box", layout: "vertical", paddingAll: "14px", spacing: "none",
         contents: [
-          pickerBtn(`📅 ตั้งแต่: ${p.start}`, "cf:date", "date", p.start),
-          pickerBtn(`📅 ถึง: ${p.end}`, "cf:end", "date", p.end),
-          postBtn(`✏️ หมายเหตุ: ${p.note ? p.note.slice(0, 18) : "(ไม่มี)"}`, "cf:note"),
+          fieldRow("ตั้งแต่", p.start, "เลือกวัน", "cf:date", "date", p.start),
+          fieldRow("ถึง", p.end, "เลือกวัน", "cf:end", "date", p.end),
+          noteRow(p.note),
           { type: "separator", color: BORDER, margin: "lg" },
           { type: "text", text: `รวม ${p.days} วันทำงาน`, size: "sm", color: MUTED, align: "center", margin: "md" },
         ],
       },
     ],
   };
-  const footerBtns: object[] = [postBtn("✅ ส่งคำขอลา", "cf:submit", { style: "primary", color: "#05be8a" })];
-  if (p.fullUri) footerBtns.push({ type: "button", height: "sm", margin: "sm", style: "link", action: { type: "uri", label: "เปิดฟอร์มเต็ม (เปลี่ยนประเภท)", uri: p.fullUri } });
-  footerBtns.push(postBtn("ยกเลิก", "cf:cancel", { style: "link" }));
-  const footer = { type: "box", layout: "vertical", paddingAll: "14px", paddingTop: "0px", contents: footerBtns };
-  return flex("ขอลางาน — กรอกในแชต", bubble(body, { footer, size: "mega" }));
+  return flex("ขอลางาน — กรอกในแชต", bubble(body, { footer: chatFooter("✅ ส่งคำขอลา", p.fullUri, "เปิดฟอร์มเต็ม"), size: "mega" }));
 }
 
 /* ---------- Attendance card ---------- */
