@@ -52,6 +52,13 @@
 - **verify**: tsc + `next build` สะอาด (route `/dashboard/ot`,`/liff/ot` คอมไพล์) · temp route ยิง engine จริง create→instantiate(resolve เมธี/ปนัดดา)→approve×2(step1→step2→approved)→กันผู้อนุมัติผิดคน→กันกดซ้ำ ครบ · screenshot ฟอร์ม LIFF OT เรนเดอร์จริง (auto-rate เสาร์→×2, ยอดเดือน, summary) · ลบ temp route + คำขอทดสอบ (เหลือ OT-0002 weekend pending ไว้โชว์ dashboard)
 - **ค้าง**: ปุ่มอนุมัติ OT ใน LINE ต้องให้หัวหน้า (เมธี) ผูกบัญชี LINE ก่อน (โครงพร้อม เหมือนลา) · attendance/document flow ต่อยอด descriptor เดิม
 
+#### แก้บั๊ก: ปุ่ม OT ไม่เด้งฟอร์ม (เหมือนลา) — RCA
+- **อาการ:** กดปุ่ม "ขอ OT" ใน rich menu แล้วฟอร์มไม่เด้ง (ต่างจาก "ลางาน" ที่เด้งทันที)
+- **Root cause (2 ชั้น):** (1) ปุ่ม OT ตั้งเป็น `postback` (ได้การ์ด) ไม่ใช่ `uri` ตรงเหมือนลา; (2) LIFF app ลงทะเบียน endpoint ที่ `/liff/leave` → LINE ให้ login/profile **scope เฉพาะ path ใต้ `/liff/leave`** → `/liff/ot` (ดิบ) อยู่นอก scope → `liff.login()` redirect ไม่ผ่าน ฟอร์มเลยไม่โหลด
+- **Fix (ไม่ต้องแตะ LINE console):** เสิร์ฟ OT แบบ in-scope ที่ `/liff/leave/ot` ด้วย `next.config` rewrite → `/liff/ot`; ชี้ปุ่ม rich menu + การ์ดในแชตไปที่ `liff.line.me/{liffId}/ot` (LINE ต่อ path เป็น `/liff/leave/ot`); webhook ใช้ LIFF launcher เมื่อมี `liff_id`
+- **verify:** prod `/liff/leave/ot?acct=` 200 เรนเดอร์ `OtFormClient`; live rich menu OT = `uri https://liff.line.me/2010383091-kBSUiU9b/ot`; re-run setup-rich-menu สำเร็จ (`richmenu-56105b…`). **เหลือยืนยันบนมือถือจริงโดย Pong**
+- **เผื่ออนาคต:** ฟอร์มใหม่ (ลงเวลา/เอกสาร) เปิดผ่าน `liff.line.me/{id}/<form>` + เพิ่ม rewrite `/liff/leave/<form>` → `/liff/<form>` ได้เลยโดยไม่ต้องลงทะเบียน LIFF ใหม่
+
 ### 2026-06-13 — Phase 3: Approval Workflow (ลา) ✅
 - **`src/lib/approval.ts`** — engine: `instantiateLeaveApproval` (อ่าน workflow leave → สร้าง `leave_approval_steps` resolve approver: manager→`manager_id`, role→หาคน role, specific_user, department_head; unresolved=skip; set `workflow_id`+`current_step`; แจ้ง approver แรก) + `actOnLeaveRequest` (approve→เลื่อน step ถัดไป/จบ, reject→จบ; แจ้งพนักงาน/approver ถัดไป; กันทำซ้ำ; `requireApproverId` ฝั่ง LINE)
 - **Flex การ์ดอนุมัติ** (`flex.ts`): `approvalRequestFlex` (หัวส้ม + ปุ่ม postback approve/reject) + `approvalResultFlex` (เขียว/แดง ผลถึงพนักงาน)
