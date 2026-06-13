@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { decodePrefill, type LeavePrefill } from "@/lib/ai/prefill";
 import { LeaveFormClient, type LeaveTypeOption } from "./leave-form-client";
 
 export const dynamic = "force-dynamic";
@@ -6,11 +7,12 @@ export const dynamic = "force-dynamic";
 export default async function LiffLeavePage({
   searchParams,
 }: {
-  searchParams: Promise<{ acct?: string; u?: string; "liff.state"?: string }>;
+  searchParams: Promise<{ acct?: string; u?: string; pre?: string; "liff.state"?: string }>;
 }) {
   const sp = await searchParams;
   const { acct, u } = sp;
   const liffState = sp["liff.state"];
+  const prefill = decodePrefill<LeavePrefill>(sp.pre);
 
   if (!acct) {
     return <FatalNotice title="ลิงก์ไม่ถูกต้อง" detail="ไม่พบรหัสช่องทาง (acct) — กรุณาเปิดจากเมนูในแชต LINE" />;
@@ -58,6 +60,7 @@ export default async function LiffLeavePage({
       devUserId={u ?? null}
       leaveTypes={options}
       transitTarget={transitTarget}
+      prefill={prefill}
     />
   );
 }

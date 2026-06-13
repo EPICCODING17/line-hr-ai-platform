@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { LiffLoading, LeaveLoadingIcon, OtLoadingIcon, DocLoadingIcon, CheckinLoadingIcon } from "../liff-loading";
+import type { LeavePrefill } from "@/lib/ai/prefill";
 import { resolveEmployee, submitLeaveRequest, type LeaveBalance } from "./actions";
 
 export type LeaveTypeOption = {
@@ -20,6 +21,8 @@ type Props = {
   /** Set when LINE loaded this endpoint only to redirect to another form
    *  (liff.state). We then show a splash for the destination, not the leave form. */
   transitTarget?: string | null;
+  /** AI-extracted values to pre-fill the form (from a natural-language message). */
+  prefill?: LeavePrefill | null;
 };
 
 const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
@@ -68,20 +71,28 @@ function loadScript(src: string) {
   });
 }
 
-export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes, transitTarget }: Props) {
+export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes, transitTarget, prefill }: Props) {
   const [phase, setPhase] = useState<Phase>({ k: "init" });
   const [userId, setUserId] = useState<string | null>(null);
   const [employee, setEmployee] = useState<{ firstName: string; lastName: string; code: string } | null>(null);
   const [balances, setBalances] = useState<Map<string, LeaveBalance>>(new Map());
   const inLiff = !devUserId && !!liffId;
 
-  // form state
-  const [typeId, setTypeId] = useState<string>(leaveTypes[0]?.id ?? "");
-  const [start, setStart] = useState<string>(todayISO());
-  const [end, setEnd] = useState<string>(todayISO());
-  const [halfDay, setHalfDay] = useState(false);
-  const [period, setPeriod] = useState<"am" | "pm">("am");
-  const [reason, setReason] = useState("");
+  // form state — seeded from AI prefill when present
+  const preStart = prefill?.start && /^\d{4}-\d{2}-\d{2}$/.test(prefill.start) ? prefill.start : todayISO();
+  const preEnd = prefill?.end && /^\d{4}-\d{2}-\d{2}$/.test(prefill.end) ? prefill.end : preStart;
+  const [typeId, setTypeId] = useState<string>(() => {
+    if (prefill?.category) {
+      const t = leaveTypes.find((x) => x.category === prefill.category);
+      if (t) return t.id;
+    }
+    return leaveTypes[0]?.id ?? "";
+  });
+  const [start, setStart] = useState<string>(preStart);
+  const [end, setEnd] = useState<string>(preEnd);
+  const [halfDay, setHalfDay] = useState(!!prefill?.half && preStart === preEnd);
+  const [period, setPeriod] = useState<"am" | "pm">(prefill?.half === "pm" ? "pm" : "am");
+  const [reason, setReason] = useState(prefill?.reason ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { decodePrefill, type DocPrefill } from "@/lib/ai/prefill";
 import { DocFormClient, type DocTypeOption } from "./document-form-client";
 
 export const dynamic = "force-dynamic";
@@ -6,9 +7,10 @@ export const dynamic = "force-dynamic";
 export default async function LiffDocumentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ acct?: string; u?: string }>;
+  searchParams: Promise<{ acct?: string; u?: string; pre?: string }>;
 }) {
-  const { acct, u } = await searchParams;
+  const { acct, u, pre } = await searchParams;
+  const prefill = decodePrefill<DocPrefill>(pre);
 
   if (!acct) {
     return <FatalNotice title="ลิงก์ไม่ถูกต้อง" detail="ไม่พบรหัสช่องทาง (acct) — กรุณาเปิดจากเมนูในแชต LINE" />;
@@ -45,6 +47,7 @@ export default async function LiffDocumentPage({
       liffId={(account.liff_id as string) ?? null}
       devUserId={u ?? null}
       docTypes={options}
+      prefill={prefill}
     />
   );
 }

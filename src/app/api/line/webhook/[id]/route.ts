@@ -7,6 +7,7 @@ import { infoFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/f
 import { actOnLeaveRequest, actOnOtRequest, actOnDocRequest } from "@/lib/approval";
 import { otRateLabel } from "@/lib/ot";
 import { classifyIntent, type IntentResult } from "@/lib/ai/intent";
+import { buildPrefill, encodePrefill } from "@/lib/ai/prefill";
 
 export const runtime = "nodejs";
 
@@ -93,6 +94,25 @@ function docLink(ctx: Ctx) {
 function checkinLink(ctx: Ctx) {
   if (ctx.liffId) return `https://liff.line.me/${ctx.liffId}/checkin`;
   return ctx.baseUrl ? `${ctx.baseUrl}/liff/checkin?acct=${ctx.acctId}` : "";
+}
+
+const FORM_META = {
+  leave: { color: "#3c8cf3", emoji: "📝", title: "ขอลางาน", label: "เปิดฟอร์มลางาน", link: leaveLink },
+  ot: { color: "#e8920c", emoji: "⏱️", title: "ขอทำ OT", label: "เปิดฟอร์ม OT", link: otLink },
+  document: { color: "#745af2", emoji: "📄", title: "ขอเอกสาร", label: "เปิดฟอร์มขอเอกสาร", link: docLink },
+} as const;
+
+/** Open-form card whose deep-link carries an optional `pre` (AI-extracted slots). */
+function prefilledFormCard(ctx: Ctx, intent: "leave" | "ot" | "document", enc: string | null): LineMessage {
+  const m = FORM_META[intent];
+  const base = m.link(ctx);
+  if (!base) return textMsg("ขออภัย ระบบฟอร์มยังไม่พร้อมใช้งานชั่วคราว");
+  const uri = enc ? `${base}${base.includes("?") ? "&" : "?"}pre=${enc}` : base;
+  return infoFlex({
+    color: m.color, emoji: m.emoji, title: m.title,
+    text: enc ? "กรอกข้อมูลเบื้องต้นให้แล้ว เปิดฟอร์มเพื่อตรวจสอบและกดส่งได้เลย" : "กดปุ่มด้านล่างเพื่อเปิดฟอร์มและกรอกรายละเอียด",
+    altText: m.title, button: { label: m.label, uri },
+  });
 }
 
 async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx, ev: LineEvent) {
@@ -189,9 +209,12 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
         await logIntent(admin, ctx.tenantId, emp.id, text, ai);
         const ack = textMsg(ai.reply);
         switch (ai.intent) {
-          case "leave": return reply([ack, ...await actionReply(admin, ctx, emp, "leave")]);
-          case "ot": return reply([ack, ...await actionReply(admin, ctx, emp, "ot")]);
-          case "document": return reply([ack, ...await actionReply(admin, ctx, emp, "document")]);
+          case "leave":
+          case "ot":
+          case "document": {
+            const pre = buildPrefill(ai.intent, ai.slots);
+            return reply([ack, prefilledFormCard(ctx, ai.intent, pre ? encodePrefill(pre) : null)]);
+          }
           case "attendance": return reply([ack, ...await actionReply(admin, ctx, emp, "checkin")]);
           case "status": return reply([ack, ...await actionReply(admin, ctx, emp, "status")]);
           default: return reply([ack]);

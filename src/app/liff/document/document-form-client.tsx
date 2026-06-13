@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { LiffLoading, DocLoadingIcon } from "../liff-loading";
+import type { DocPrefill } from "@/lib/ai/prefill";
 import { resolveDocEmployee, submitDocRequest } from "./actions";
 
 export type DocTypeOption = {
@@ -16,6 +17,7 @@ type Props = {
   liffId: string | null;
   devUserId: string | null;
   docTypes: DocTypeOption[];
+  prefill?: DocPrefill | null;
 };
 
 const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
@@ -59,16 +61,22 @@ function loadScript(src: string) {
   });
 }
 
-export function DocFormClient({ acctId, liffId, devUserId, docTypes }: Props) {
+export function DocFormClient({ acctId, liffId, devUserId, docTypes, prefill }: Props) {
   const [phase, setPhase] = useState<Phase>({ k: "init" });
   const [userId, setUserId] = useState<string | null>(null);
   const [employee, setEmployee] = useState<{ firstName: string; lastName: string; code: string } | null>(null);
   const inLiff = !devUserId && !!liffId;
 
-  const [typeId, setTypeId] = useState<string>(docTypes[0]?.id ?? "");
-  const [language, setLanguage] = useState<"th" | "en">("th");
+  const [typeId, setTypeId] = useState<string>(() => {
+    if (prefill?.code) {
+      const t = docTypes.find((x) => x.code === prefill.code);
+      if (t) return t.id;
+    }
+    return docTypes[0]?.id ?? "";
+  });
+  const [language, setLanguage] = useState<"th" | "en">(prefill?.language === "en" ? "en" : "th");
   const [refMonth, setRefMonth] = useState<string>(thisMonthValue());
-  const [purpose, setPurpose] = useState("");
+  const [purpose, setPurpose] = useState(prefill?.purpose ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 

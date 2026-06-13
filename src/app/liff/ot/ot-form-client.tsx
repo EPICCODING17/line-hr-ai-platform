@@ -5,6 +5,7 @@ import {
   OT_RATE_TYPES, OT_RATE_LABEL, autoRateType, otHours, parseHM, fmtHours, type OtRateType,
 } from "@/lib/ot";
 import { LiffLoading, OtLoadingIcon } from "../liff-loading";
+import type { OtPrefill } from "@/lib/ai/prefill";
 import { resolveOtEmployee, submitOtRequest } from "./actions";
 
 export type OtPolicyInfo = {
@@ -20,6 +21,7 @@ type Props = {
   devUserId: string | null;
   policy: OtPolicyInfo;
   holidays: string[];
+  prefill?: OtPrefill | null;
 };
 
 const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
@@ -61,7 +63,7 @@ function loadScript(src: string) {
   });
 }
 
-export function OtFormClient({ acctId, liffId, devUserId, policy, holidays }: Props) {
+export function OtFormClient({ acctId, liffId, devUserId, policy, holidays, prefill }: Props) {
   const [phase, setPhase] = useState<Phase>({ k: "init" });
   const [userId, setUserId] = useState<string | null>(null);
   const [employee, setEmployee] = useState<{ firstName: string; lastName: string; code: string } | null>(null);
@@ -69,13 +71,16 @@ export function OtFormClient({ acctId, liffId, devUserId, policy, holidays }: Pr
   const inLiff = !devUserId && !!liffId;
   const holidaySet = useMemo(() => new Set(holidays), [holidays]);
 
-  // form state
-  const [otDate, setOtDate] = useState<string>(todayISO());
-  const [startTime, setStartTime] = useState("18:00");
-  const [endTime, setEndTime] = useState("21:00");
-  const [rateType, setRateType] = useState<OtRateType>(() => autoRateType(todayISO(), holidaySet));
+  // form state — seeded from AI prefill when present
+  const preDate = prefill?.date && /^\d{4}-\d{2}-\d{2}$/.test(prefill.date) ? prefill.date : todayISO();
+  const preStart = prefill?.start && /^([01]\d|2[0-3]):[0-5]\d$/.test(prefill.start) ? prefill.start : "18:00";
+  const preEnd = prefill?.end && /^([01]\d|2[0-3]):[0-5]\d$/.test(prefill.end) ? prefill.end : "21:00";
+  const [otDate, setOtDate] = useState<string>(preDate);
+  const [startTime, setStartTime] = useState(preStart);
+  const [endTime, setEndTime] = useState(preEnd);
+  const [rateType, setRateType] = useState<OtRateType>(() => autoRateType(preDate, holidaySet));
   const [rateTouched, setRateTouched] = useState(false);
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState(prefill?.reason ?? "");
   const [project, setProject] = useState("");
   const [customer, setCustomer] = useState("");
   const [submitting, setSubmitting] = useState(false);
