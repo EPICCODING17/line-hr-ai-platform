@@ -55,16 +55,22 @@ reply: ตอบรับ 1 ประโยค
 export async function classifyIntent(text: string): Promise<IntentResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  const model = process.env.ANTHROPIC_MODEL || "claude-opus-4-8";
+  const model = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
   const client = new Anthropic({ apiKey });
   const started = Date.now();
   try {
+    const format = { type: "json_schema", schema: SCHEMA } as const;
+    // `effort` is unsupported on Haiku 4.5 (returns 400) — only send it to models
+    // that accept it. Haiku is already fast/cheap and needs no effort knob.
+    const output_config = /haiku/i.test(model)
+      ? { format }
+      : { format, effort: "low" as const };
     const res = await client.messages.create({
       model,
       max_tokens: 400,
       system: SYSTEM,
       messages: [{ role: "user", content: text.slice(0, 1000) }],
-      output_config: { format: { type: "json_schema", schema: SCHEMA }, effort: "low" },
+      output_config,
     });
     const latencyMs = Date.now() - started;
     const block = res.content.find((b) => b.type === "text");
