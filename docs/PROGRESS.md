@@ -61,9 +61,9 @@
 
 #### มาตรฐาน LIFF loading/feedback (ใช้ทุกฟอร์ม + ของใหม่ในอนาคต)
 - **เปิดเข้ามาครั้งแรก:** splash เต็มจอ — `LiffLoading` (`src/app/liff/liff-loading.tsx`): tile gradient แบรนด์หายใจ + ripple ring + ไอคอนตามบริบท (ลา=ปฏิทิน, OT=นาฬิกา) + reduced-motion
-- **กดส่ง (กำลังส่ง):** **ห้ามเต็มจอ** — คงฟอร์มไว้ แค่ปุ่มขึ้น `.liff-spin` (spinner ในปุ่ม) + disabled กันกดซ้ำ. `phase` ยังเป็น `"ready"`, ใช้แค่ flag `submitting`
+- **กดส่ง (กำลังส่ง):** **`LiffLoading` เต็มจอเช่นกัน** ข้อความ "กำลังส่งคำขอ…" — render เมื่อ `submitting === true` (ก่อน return ฟอร์ม). Pong ต้องการให้รูปแบบเดียวกับตอนโหลดเข้ามา
 - **ส่งสำเร็จ:** **หน้า success เต็มจอ** (checkmark วาด + confetti) — คงไว้ทุกฟอร์ม
-- ทำครบทั้ง leave + ot แล้ว (commit `ba386a3`); ฟอร์มถัดไปให้ reuse pattern เดียวกัน
+- ทำครบทั้ง leave + ot แล้ว; ฟอร์มถัดไปให้ reuse pattern เดียวกัน (3 จังหวะ splash → splash → success ล้วนเต็มจอ)
 
 ### 2026-06-13 — Phase 3: Approval Workflow (ลา) ✅
 - **`src/lib/approval.ts`** — engine: `instantiateLeaveApproval` (อ่าน workflow leave → สร้าง `leave_approval_steps` resolve approver: manager→`manager_id`, role→หาคน role, specific_user, department_head; unresolved=skip; set `workflow_id`+`current_step`; แจ้ง approver แรก) + `actOnLeaveRequest` (approve→เลื่อน step ถัดไป/จบ, reject→จบ; แจ้งพนักงาน/approver ถัดไป; กันทำซ้ำ; `requireApproverId` ฝั่ง LINE)

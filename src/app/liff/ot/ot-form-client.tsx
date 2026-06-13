@@ -172,6 +172,7 @@ export function OtFormClient({ acctId, liffId, devUserId, policy, holidays }: Pr
   if (phase.k === "needlink") return <NeedLink />;
   if (phase.k === "error") return <ErrorState msg={phase.msg} />;
   if (phase.k === "done") return <Success requestNo={phase.requestNo} hours={phase.hours} inLiff={inLiff} onClose={closeWindow} />;
+  if (submitting) return <LiffLoading title="กำลังส่งคำขอ OT" sub="กำลังบันทึกและส่งให้หัวหน้าอนุมัติ…" icon={<OtLoadingIcon />} />;
 
   return (
     <main className="liff-shell">
@@ -310,7 +311,7 @@ export function OtFormClient({ acctId, liffId, devUserId, policy, holidays }: Pr
         </div>
         {formError && <p className="form-error" role="alert">{formError}</p>}
         <button type="button" className="liff-submit" disabled={submitting || hours <= 0 || overDay} onClick={onSubmit}>
-          {submitting ? (<><span className="liff-spin" aria-hidden />กำลังส่ง…</>) : "ส่งคำขอ OT"}
+          ส่งคำขอ OT
         </button>
       </footer>
     </main>

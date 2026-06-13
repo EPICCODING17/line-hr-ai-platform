@@ -162,6 +162,7 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props
   if (phase.k === "needlink") return <NeedLink />;
   if (phase.k === "error") return <ErrorState msg={phase.msg} />;
   if (phase.k === "done") return <Success requestNo={phase.requestNo} totalDays={phase.totalDays} inLiff={inLiff} onClose={closeWindow} />;
+  if (submitting) return <LiffLoading title="กำลังส่งคำขอลา" sub="กำลังบันทึกและส่งให้หัวหน้าอนุมัติ…" icon={<LeaveLoadingIcon />} />;
 
   return (
     <main className="liff-shell">
@@ -294,7 +295,7 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes }: Props
         </div>
         {formError && <p className="form-error" role="alert">{formError}</p>}
         <button type="button" className="liff-submit" disabled={submitting || totalDays <= 0} onClick={onSubmit}>
-          {submitting ? (<><span className="liff-spin" aria-hidden />กำลังส่ง…</>) : "ส่งคำขอลา"}
+          ส่งคำขอลา
         </button>
       </footer>
     </main>
