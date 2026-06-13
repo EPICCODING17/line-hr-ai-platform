@@ -4,7 +4,8 @@ import { decryptSecret } from "@/lib/crypto";
 import { verifyLineSignature } from "@/lib/line/verify";
 import { replyMessage, textMsg, type LineMessage } from "@/lib/line/client";
 import { infoFlex, comingSoonFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
-import { actOnLeaveRequest } from "@/lib/approval";
+import { actOnLeaveRequest, actOnOtRequest } from "@/lib/approval";
+import { otRateLabel } from "@/lib/ot";
 
 export const runtime = "nodejs";
 
@@ -73,6 +74,10 @@ function leaveLink(ctx: Ctx) {
   return ctx.baseUrl ? `${ctx.baseUrl}/liff/leave?acct=${ctx.acctId}` : "";
 }
 
+function otLink(ctx: Ctx) {
+  return ctx.baseUrl ? `${ctx.baseUrl}/liff/ot?acct=${ctx.acctId}` : "";
+}
+
 async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx, ev: LineEvent) {
   const userId = ev.source?.userId;
   const reply = (messages: LineMessage[]) => ev.replyToken ? replyMessage(ctx.accessToken, ev.replyToken, messages) : null;
@@ -89,6 +94,23 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
     const data = ev.postback?.data ?? "";
     const emp = await findEmployeeByLine(admin, ctx.tenantId, userId);
     if (!emp) return reply([textMsg("กรุณาผูกบัญชีก่อน โดยพิมพ์รหัสพนักงาน (เช่น EMP-2026-0001)")]);
+
+    // OT approval decisions (module-tagged to avoid colliding with leave)
+    const otMatch = /^(otapprove|otreject):(.+)$/.exec(data);
+    if (otMatch) {
+      const decision = otMatch[1] === "otapprove" ? "approved" : "rejected";
+      const res = await actOnOtRequest(admin, {
+        tenantId: ctx.tenantId, requestId: otMatch[2], decision,
+        byName: emp.first_name, requireApproverId: emp.id,
+      });
+      if (!res.ok) return reply([textMsg(`⚠️ ${res.error}`)]);
+      const msg = decision === "rejected"
+        ? "ปฏิเสธคำขอ OT แล้ว — ระบบแจ้งผลให้พนักงานเรียบร้อย"
+        : res.final === "approved"
+          ? "อนุมัติคำขอ OT เรียบร้อย ✅ ระบบแจ้งผลให้พนักงานแล้ว"
+          : "อนุมัติขั้นของคุณแล้ว ✅ ส่งต่อให้ผู้อนุมัติลำดับถัดไป";
+      return reply([textMsg(msg)]);
+    }
 
     const decisionMatch = /^(approve|reject):(.+)$/.exec(data);
     if (decisionMatch) {
@@ -120,6 +142,7 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
     const emp = await findEmployeeByLine(admin, ctx.tenantId, userId);
     if (emp) {
       // keyword shortcuts so it works even before/without the rich menu
+      if (/โอที|\bo\.?t\b/i.test(text)) return reply(await actionReply(admin, ctx, emp, "ot"));
       if (/ลา|leave/i.test(text)) return reply(await actionReply(admin, ctx, emp, "leave"));
       if (/สถานะ|status/i.test(text)) return reply(await actionReply(admin, ctx, emp, "status"));
       return reply([textMsg(`สวัสดีคุณ${emp.first_name} 🙌\nเลือกบริการจากเมนูด้านล่าง หรือพิมพ์ “ลางาน” เพื่อเริ่มได้เลย`)]);
@@ -148,8 +171,15 @@ async function actionReply(
     }
     case "status":
       return [await statusReply(admin, ctx.tenantId, emp)];
-    case "ot":
-      return [comingSoonFlex("ขอ OT", "⏱️")];
+    case "ot": {
+      const url = otLink(ctx);
+      if (!url) return [textMsg("ขออภัย ระบบฟอร์ม OT ยังไม่พร้อมใช้งานชั่วคราว")];
+      return [infoFlex({
+        color: "#e8920c", emoji: "⏱️", title: "ขอทำ OT",
+        text: "กดปุ่มด้านล่างเพื่อเปิดฟอร์มกรอกรายละเอียดการทำงานล่วงเวลา ระบบจะส่งให้หัวหน้าอนุมัติให้",
+        altText: "ขอทำ OT", button: { label: "เปิดฟอร์ม OT", uri: url },
+      })];
+    }
     case "checkin":
       return [comingSoonFlex("ลงเวลาเข้า–ออกงาน", "✅")];
     case "document":
@@ -161,31 +191,47 @@ async function actionReply(
   }
 }
 
+type StatusItem = { title: string; sub: string; status: string; requestNo: string; createdAt: string };
+
 async function statusReply(
   admin: ReturnType<typeof createAdminClient>, tenantId: string,
   emp: { id: string; first_name: string },
 ): Promise<LineMessage> {
-  const { data } = await admin
-    .from("leave_requests")
-    .select("request_no, start_date, end_date, total_days, status, leave_types(name)")
-    .eq("tenant_id", tenantId).eq("employee_id", emp.id)
-    .is("deleted_at", null).order("created_at", { ascending: false }).limit(5);
+  const [{ data: leave }, { data: ot }] = await Promise.all([
+    admin.from("leave_requests")
+      .select("request_no, start_date, end_date, total_days, status, created_at, leave_types(name)")
+      .eq("tenant_id", tenantId).eq("employee_id", emp.id)
+      .is("deleted_at", null).order("created_at", { ascending: false }).limit(5),
+    admin.from("ot_requests")
+      .select("request_no, ot_date, total_hours, rate_type, status, created_at")
+      .eq("tenant_id", tenantId).eq("employee_id", emp.id)
+      .is("deleted_at", null).order("created_at", { ascending: false }).limit(5),
+  ]);
 
-  if (!data || data.length === 0) {
+  const items: StatusItem[] = [
+    ...(leave ?? []).map((r) => ({
+      title: (r.leave_types as { name?: string } | null)?.name ?? "การลา",
+      sub: `${r.start_date === r.end_date ? r.start_date : `${r.start_date}–${r.end_date}`} · ${r.total_days} วัน`,
+      status: r.status as string,
+      requestNo: r.request_no as string,
+      createdAt: String(r.created_at),
+    })),
+    ...(ot ?? []).map((r) => ({
+      title: `OT · ${otRateLabel(r.rate_type as string)}`,
+      sub: `${r.ot_date} · ${r.total_hours} ชม.`,
+      status: r.status as string,
+      requestNo: r.request_no as string,
+      createdAt: String(r.created_at),
+    })),
+  ].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)).slice(0, 6);
+
+  if (items.length === 0) {
     return infoFlex({
-      color: "#3c8cf3", emoji: "📋", title: "ยังไม่มีคำขอลา",
-      text: "กดปุ่ม “ลางาน” ในเมนูด้านล่างเพื่อสร้างคำขอแรกของคุณได้เลย",
-      altText: "ยังไม่มีคำขอลา",
+      color: "#3c8cf3", emoji: "📋", title: "ยังไม่มีคำขอ",
+      text: "เลือก “ลางาน” หรือ “ขอ OT” ในเมนูด้านล่างเพื่อสร้างคำขอแรกของคุณได้เลย",
+      altText: "ยังไม่มีคำขอ",
     });
   }
-
-  const items = data.map((r) => ({
-    typeName: (r.leave_types as { name?: string } | null)?.name ?? "การลา",
-    range: r.start_date === r.end_date ? String(r.start_date) : `${r.start_date}–${r.end_date}`,
-    days: r.total_days as number,
-    status: r.status as string,
-    requestNo: r.request_no as string,
-  }));
   return statusListFlex(emp.first_name, items);
 }
 

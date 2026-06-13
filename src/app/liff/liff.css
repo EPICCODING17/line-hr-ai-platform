@@ -77,6 +77,20 @@
 }
 .type-chip.is-active .type-check { transform: scale(1); }
 
+/* OT rate tiles — show the multiplier inside the tile */
+.rate-tile { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.rate-suggest {
+  font-size: 11px; font-weight: 600; line-height: 1.2;
+  color: color-mix(in srgb, var(--c) 82%, var(--text));
+}
+.ot-hint { margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted); display: flex; gap: 6px; }
+.ot-month {
+  margin: 0; font-size: 12.5px; font-weight: 500; color: var(--text-muted);
+  font-variant-numeric: tabular-nums; text-align: center;
+  padding: 9px 12px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--border);
+}
+.ot-month.is-over { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
+
 /* dates — stacked on phones (Chromium date inputs won't shrink); row on tablet */
 .date-row { display: flex; flex-direction: column; gap: 13px; min-width: 0; }
 .date-cell { display: flex; flex-direction: column; gap: 6px; min-width: 0; }

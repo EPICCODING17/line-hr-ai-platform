@@ -6,11 +6,11 @@
 ---
 
 ## สถานะรวม
-- **Phase ปัจจุบัน:** Phase 2 — **ขึ้น production ครบวงจรแล้ว! ✅** Deploy Vercel + GitHub, Rich Menu + LIFF ฟอร์มลา + webhook ทำงานบนโดเมนถาวร, Webhook Verify ผ่าน
-- **ถัดไป:** **Phase 3 — Approval workflow** (อนุมัติ/ปฏิเสธคำขอลา + แจ้งเตือน) เพื่อปิดลูปการลา + หน้า dashboard รายการคำขอลาให้ HR; แล้วต่อ flow OT/ลงเวลา/เอกสาร
-- **Supabase:** Singapore (aws-1 pooler) · migrations ถึง **0009** · Demo Co seeded (6 พนักงาน, admin user)
+- **Phase ปัจจุบัน:** Phase 3 ครบ + **OT flow ครบวงจร ✅** (ฟอร์ม LIFF + dashboard + อนุมัติผ่าน LINE) บน approval engine กลางตัวเดียว
+- **ถัดไป:** ต่อ flow **ลงเวลา (attendance)** + **เอกสาร (document)** ด้วย engine เดิม (เหลือเขียน descriptor + ฟอร์ม + การ์ด); แล้วค่อย Phase 4 AI layer
+- **Supabase:** Singapore (aws-1 pooler) · migrations ถึง **0009** · Demo Co seeded (6 พนักงาน, admin user) · OT policy/rates/workflow seed พร้อมจาก `seed_tenant_defaults`
 - **Login dashboard:** admin@demo.co / Demo!2026
-- **อัปเดตล่าสุด:** 2026-06-12
+- **อัปเดตล่าสุด:** 2026-06-13
 
 ### 🌐 Production (โดเมนถาวร — ไม่ต้องเปลี่ยนอีก)
 - **GitHub:** `https://github.com/EPICCODING17/line-hr-ai-platform` (private) · workflow: แก้โค้ด → `git push` → Vercel auto-deploy
@@ -29,15 +29,28 @@
 
 ## Roadmap checklist
 - [x] **Phase 0** — Foundation DB + RLS
-- [ ] **Phase 1** — Employee Core + Web Dashboard (CRUD)
-- [ ] **Phase 2** — LINE + LIFF แบบ structured (Rich Menu → form, ยังไม่มี AI)
-- [ ] **Phase 3** — Approval Workflow engine (configurable) + Notification
+- [x] **Phase 1** — Employee Core + Web Dashboard (CRUD)
+- [x] **Phase 2** — LINE + LIFF แบบ structured (Rich Menu → form, ยังไม่มี AI)
+- [x] **Phase 3** — Approval Workflow engine (configurable) + Notification — **ลา + OT ใช้ engine กลางตัวเดียว**
+- [ ] **Phase 3.x** — flow ที่เหลือบน engine เดิม: ลงเวลา (attendance) · เอกสาร (document)
 - [ ] **Phase 4** — AI layer (async webhook → intent → slot-filling → confirm)
 - [ ] **Phase 5** — Payroll + Billing + PDPA
 
 ---
 
 ## บันทึกรายวัน
+
+### 2026-06-13 — Phase 3.x: OT flow ครบวงจร ✅ (impeccable craft · refactor engine เป็น generic)
+- **Refactor approval engine → generic** (`src/lib/approval/`): แตกเป็น `core.ts` (control-flow ขับด้วย **module descriptor**: ตาราง request/step + ฟังก์ชันสร้างการ์ด Flex ฉีดเข้า) + `leave.ts` + `ot.ts` + `index.ts` (re-export). wrapper เดิม `instantiateLeaveApproval`/`actOnLeaveRequest` คงลายเซ็น → call site ลา (webhook/dashboard) ไม่ต้องแก้. เพิ่ม `instantiateOtApproval`/`actOnOtRequest`. ลบ `src/lib/approval.ts` เดิม
+- **`src/lib/ot.ts`** (pure, ใช้ทั้ง server+client): rate type/label/multiplier, `otHours` (รองรับข้ามคืน), `autoRateType` (holiday>weekend>weekday), `otTimestamps` (+07:00, ม้วน end เป็นวันถัดไป), `formatOtTimeRange` (Intl Asia/Bangkok), `fmtHours`
+- **LIFF ฟอร์ม OT** (`src/app/liff/ot/`): page (server โหลด policy/rates/holidays) + `ot-form-client.tsx` — วันที่ + เวลาเริ่ม/สิ้นสุด (native time, hint ข้ามคืน) + **อัตรา auto-suggest จากวันที่ + เลือกเองได้** (chip 2×2 โชว์ ×N + badge "แนะนำสำหรับวันนี้") + project/customer (เฉพาะถ้านโยบายบังคับ) + เหตุผล + **ยอด OT เดือนนี้ X/36 ชม.** + summary ชั่วโมงสด + เตือนเกินเพดาน/วัน. states ครบ (skeleton/needlink/error/success ใบเสร็จ) — reuse `liff.css` + เพิ่ม `.rate-tile/.rate-suggest/.ot-hint/.ot-month`
+- **`liff/ot/actions.ts`**: `resolveOtEmployee` (employee + OT เดือนนี้ pending+approved) · `submitOtRequest` (Zod, คุม max/วัน + requiresProject, gen_request_no `OT-DDMMYYYY-0001`, insert source=liff, push ใบเสร็จ, instantiate)
+- **Flex OT** (`flex.ts`): `otReceiptFlex` · `otApprovalRequestFlex` (ปุ่ม postback `otapprove:`/`otreject:`) · `otApprovalResultFlex`; generalize `statusListFlex` (`{title, sub, status, requestNo}`) ให้รวมลา+OT
+- **หน้า `/dashboard/ot`** — mirror หน้าลา (filter tabs + การ์ด + อนุมัติ ConfirmDialog/ปฏิเสธ modal) + เปิดเมนู sidebar "OT" (soon→href) + TITLES
+- **Wire webhook**: ปุ่ม/keyword "ขอ OT" → เปิดฟอร์ม OT (direct-URL LIFF เดียวกับลา ไม่ต้องตั้ง LINE console เพิ่ม) · postback `otapprove:/otreject:` → actOnOt (ตรวจก่อน regex ลาเพื่อกันชน) · "สถานะคำขอ" รวมลา+OT เรียงตามเวลา
+- **ไม่ต้องมี migration**: ตาราง OT + workflow "อนุมัติ OT" (manager→hr) + policy(4ชม./วัน,36/เดือน) + rates(1.5/2/3/3x) seed พร้อมแล้ว
+- **verify**: tsc + `next build` สะอาด (route `/dashboard/ot`,`/liff/ot` คอมไพล์) · temp route ยิง engine จริง create→instantiate(resolve เมธี/ปนัดดา)→approve×2(step1→step2→approved)→กันผู้อนุมัติผิดคน→กันกดซ้ำ ครบ · screenshot ฟอร์ม LIFF OT เรนเดอร์จริง (auto-rate เสาร์→×2, ยอดเดือน, summary) · ลบ temp route + คำขอทดสอบ (เหลือ OT-0002 weekend pending ไว้โชว์ dashboard)
+- **ค้าง**: ปุ่มอนุมัติ OT ใน LINE ต้องให้หัวหน้า (เมธี) ผูกบัญชี LINE ก่อน (โครงพร้อม เหมือนลา) · attendance/document flow ต่อยอด descriptor เดิม
 
 ### 2026-06-13 — Phase 3: Approval Workflow (ลา) ✅
 - **`src/lib/approval.ts`** — engine: `instantiateLeaveApproval` (อ่าน workflow leave → สร้าง `leave_approval_steps` resolve approver: manager→`manager_id`, role→หาคน role, specific_user, department_head; unresolved=skip; set `workflow_id`+`current_step`; แจ้ง approver แรก) + `actOnLeaveRequest` (approve→เลื่อน step ถัดไป/จบ, reject→จบ; แจ้งพนักงาน/approver ถัดไป; กันทำซ้ำ; `requireApproverId` ฝั่ง LINE)

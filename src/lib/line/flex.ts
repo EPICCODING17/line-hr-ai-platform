@@ -157,9 +157,9 @@ export function leaveReceiptFlex(p: {
   return flex(`ส่งคำขอลาแล้ว ${p.requestNo}`, bubble(body, { size: "mega" }));
 }
 
-/** List of the employee's recent leave requests (status query). */
+/** List of the employee's recent requests (status query) — leave or OT. */
 export function statusListFlex(name: string, items: Array<{
-  typeName: string; range: string; days: number | string; status: string; requestNo: string;
+  title: string; sub: string; status: string; requestNo: string;
 }>): LineMessage {
   const rows = items.flatMap((it, i) => {
     const s = statusOf(it.status);
@@ -173,11 +173,11 @@ export function statusListFlex(name: string, items: Array<{
           type: "box",
           layout: "horizontal",
           contents: [
-            { type: "text", text: it.typeName, size: "sm", weight: "bold", color: INK, gravity: "center", flex: 1, wrap: true },
+            { type: "text", text: it.title, size: "sm", weight: "bold", color: INK, gravity: "center", flex: 1, wrap: true },
             pill(s.label, s.fg, s.bg),
           ],
         },
-        { type: "text", text: `${it.range} · ${it.days} วัน`, size: "xs", color: MUTED },
+        { type: "text", text: it.sub, size: "xs", color: MUTED },
         { type: "text", text: it.requestNo, size: "xxs", color: FAINT },
       ],
     };
@@ -353,6 +353,124 @@ export function approvalResultFlex(p: {
     ],
   };
   return flex(p.approved ? "คำขอลาได้รับอนุมัติ" : "คำขอลาถูกปฏิเสธ", bubble(body, { size: "mega" }));
+}
+
+/* ---------- OT cards ---------- */
+
+function otDetailRows(p: { dateText: string; timeRange: string; hours: number | string; rateLabel: string; reason?: string | null; requestNo: string }) {
+  return [
+    row("วันที่", p.dateText),
+    row("เวลา", p.timeRange),
+    row("รวมชั่วโมง", `${p.hours} ชม.`, { strong: true }),
+    row("อัตรา", p.rateLabel),
+    ...(p.reason ? [row("เหตุผล", p.reason)] : []),
+    { type: "separator", color: BORDER },
+    row("เลขที่คำขอ", p.requestNo),
+  ];
+}
+
+/** OT-request receipt (sent after a successful LIFF submit). */
+export function otReceiptFlex(p: {
+  requestNo: string; dateText: string; timeRange: string; hours: number | string; rateLabel: string; status?: string;
+}): LineMessage {
+  const status = p.status ?? "pending";
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: "#05be8a", paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: "✓", size: "lg", color: "#ffffff", align: "center", weight: "bold" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: "ส่งคำขอ OT แล้ว", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: "ส่งให้หัวหน้าอนุมัติเรียบร้อย", color: "#eafff7", size: "xs" },
+          ] },
+        ],
+      },
+      {
+        type: "box", layout: "vertical", paddingAll: "18px", spacing: "md",
+        contents: [
+          row("วันที่", p.dateText),
+          row("เวลา", p.timeRange),
+          row("รวมชั่วโมง", `${p.hours} ชม.`, { strong: true }),
+          row("อัตรา", p.rateLabel),
+          { type: "separator", color: BORDER },
+          row("เลขที่คำขอ", p.requestNo),
+          statusRow(status),
+        ],
+      },
+    ],
+  };
+  return flex(`ส่งคำขอ OT แล้ว ${p.requestNo}`, bubble(body, { size: "mega" }));
+}
+
+/** OT approval request sent to an approver with action buttons. */
+export function otApprovalRequestFlex(p: {
+  requestId: string; employeeName: string; dateText: string; timeRange: string;
+  hours: number | string; rateLabel: string; reason?: string | null; requestNo: string;
+}): LineMessage {
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: "#e8920c", paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: "⏱️", size: "lg", align: "center" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: "คำขอ OT รออนุมัติ", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: "กรุณาพิจารณาคำขอด้านล่าง", color: "#fff4e0", size: "xs" },
+          ] },
+        ],
+      },
+      {
+        type: "box", layout: "vertical", paddingAll: "18px", spacing: "md",
+        contents: [row("พนักงาน", p.employeeName, { strong: true }), ...otDetailRows(p)],
+      },
+    ],
+  };
+  const footer = {
+    type: "box", layout: "horizontal", spacing: "sm", paddingAll: "16px", paddingTop: "0px",
+    contents: [
+      { type: "button", style: "secondary", height: "sm", action: { type: "postback", label: "ปฏิเสธ", data: `otreject:${p.requestId}`, displayText: "❌ ปฏิเสธคำขอ OT" } },
+      { type: "button", style: "primary", color: "#05be8a", height: "sm", action: { type: "postback", label: "อนุมัติ", data: `otapprove:${p.requestId}`, displayText: "✅ อนุมัติคำขอ OT" } },
+    ],
+  };
+  return flex(`คำขอ OT รออนุมัติ — ${p.employeeName}`, bubble(body, { footer, size: "mega" }));
+}
+
+/** OT approval result sent to the employee. */
+export function otApprovalResultFlex(p: {
+  approved: boolean; dateText: string; timeRange: string; hours: number | string;
+  rateLabel: string; requestNo: string; reason?: string | null; byName?: string | null;
+}): LineMessage {
+  const color = p.approved ? "#05be8a" : "#ef5350";
+  const detail = [
+    row("วันที่", p.dateText),
+    row("เวลา", p.timeRange),
+    row("รวมชั่วโมง", `${p.hours} ชม.`, { strong: true }),
+    row("อัตรา", p.rateLabel),
+    ...(p.byName ? [row(p.approved ? "ผู้อนุมัติ" : "ผู้พิจารณา", p.byName)] : []),
+    ...(!p.approved && p.reason ? [row("เหตุผล", p.reason)] : []),
+    { type: "separator", color: BORDER },
+    row("เลขที่", p.requestNo),
+  ];
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: color, paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: p.approved ? "✓" : "✕", size: "lg", color: "#ffffff", align: "center", weight: "bold" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: p.approved ? "คำขอ OT ได้รับอนุมัติ" : "คำขอ OT ถูกปฏิเสธ", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: p.approved ? "OT ของคุณได้รับการอนุมัติแล้ว 🎉" : "โปรดติดต่อหัวหน้า/HR หากมีข้อสงสัย", color: "#ffffff", size: "xs" },
+          ] },
+        ],
+      },
+      { type: "box", layout: "vertical", paddingAll: "18px", spacing: "md", contents: detail },
+    ],
+  };
+  return flex(p.approved ? "คำขอ OT ได้รับอนุมัติ" : "คำขอ OT ถูกปฏิเสธ", bubble(body, { size: "mega" }));
 }
 
 /** Welcome / linked-success card. */
