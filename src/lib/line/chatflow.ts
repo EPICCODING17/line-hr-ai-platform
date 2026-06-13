@@ -4,12 +4,26 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { textMsg, type LineMessage } from "@/lib/line/client";
-import { chatOtFlex, chatLeaveFlex } from "@/lib/line/flex";
 import { otHours, autoRateType, otRateLabel, fmtHours } from "@/lib/ot";
 import { encodePrefill } from "@/lib/ai/prefill";
 import { submitOtRequest } from "@/app/liff/ot/actions";
 import { submitLeaveRequest } from "@/app/liff/leave/actions";
 import type { Slots } from "@/lib/ai/intent";
+
+/* Quick-reply builders: buttons float above the keyboard instead of piling up
+   cards in the chat history. Labels must stay ≤ 20 chars (LINE limit). */
+function qrPicker(label: string, data: string, mode: "date" | "time", initial: string) {
+  return { type: "action", action: { type: "datetimepicker", label, data, mode, initial } };
+}
+function qrPost(label: string, data: string) {
+  return { type: "action", action: { type: "postback", label, data, displayText: label } };
+}
+function qrUri(label: string, uri: string) {
+  return { type: "action", action: { type: "uri", label, uri } };
+}
+function qrMsg(text: string, items: object[]): LineMessage {
+  return { type: "text", text, quickReply: { items } } as LineMessage;
+}
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -95,7 +109,8 @@ async function clear(ctx: CfCtx) {
 
 /* ---------- rendering ---------- */
 
-async function renderCard(ctx: CfCtx, c: CfContext): Promise<LineMessage> {
+async function renderCard(ctx: CfCtx, c: CfContext, lead = ""): Promise<LineMessage> {
+  const noteLine = (n: string | null | undefined) => `📝 หมายเหตุ: ${n ? n : "—"}`;
   if (c.intent === "ot") {
     const date = c.otDate ?? todayBkk();
     const start = c.startTime ?? "18:00";
@@ -104,20 +119,33 @@ async function renderCard(ctx: CfCtx, c: CfContext): Promise<LineMessage> {
     const hol = await holidaysFor(ctx.admin, ctx.tenantId, date.slice(0, 4));
     const rate = autoRateType(date, hol);
     const pre = encodePrefill({ date, start, end, reason: c.note ?? undefined });
-    return chatOtFlex({
-      date, start, end, note: c.note ?? null, hours: fmtHours(hours), rateLabel: otRateLabel(rate),
-      fullUri: `${ctx.otBase}${ctx.otBase.includes("?") ? "&" : "?"}pre=${pre}`,
-    });
+    const fullUri = `${ctx.otBase}${ctx.otBase.includes("?") ? "&" : "?"}pre=${pre}`;
+    const text = `${lead}⏱️ ขอทำ OT\n📅 วันที่: ${date}\n🕐 เวลา: ${start} – ${end}  (รวม ${fmtHours(hours)} ชม.)\n💼 อัตรา: ${otRateLabel(rate)}\n${noteLine(c.note)}\n\nแตะปุ่มด้านล่างเพื่อแก้ไข แล้วกด “ส่งคำขอ”`;
+    return qrMsg(text, [
+      qrPicker("📅 วันที่", "cf:date", "date", date),
+      qrPicker("🕐 เวลาเริ่ม", "cf:start", "time", start),
+      qrPicker("🕐 เวลาสิ้นสุด", "cf:end", "time", end),
+      qrPost("✏️ หมายเหตุ", "cf:note"),
+      qrPost("✅ ส่งคำขอ", "cf:submit"),
+      qrPost("✖️ ยกเลิก", "cf:cancel"),
+      qrUri("📄 ฟอร์มเต็ม", fullUri),
+    ]);
   }
   const start = c.startDate ?? todayBkk();
   const end = c.endDate ?? start;
   const hol = await holidaysFor(ctx.admin, ctx.tenantId, start.slice(0, 4));
   const days = countWorkingDays(start, end, hol);
-  const pre = encodePrefill({ category: undefined, start, end, reason: c.note ?? undefined });
-  return chatLeaveFlex({
-    typeName: c.typeName ?? "ลางาน", start, end, note: c.note ?? null, days,
-    fullUri: `${ctx.leaveBase}${ctx.leaveBase.includes("?") ? "&" : "?"}pre=${pre}`,
-  });
+  const pre = encodePrefill({ start, end, reason: c.note ?? undefined });
+  const fullUri = `${ctx.leaveBase}${ctx.leaveBase.includes("?") ? "&" : "?"}pre=${pre}`;
+  const text = `${lead}📝 ขอลางาน · ${c.typeName ?? "ลางาน"}\n📅 ตั้งแต่: ${start}\n📅 ถึง: ${end}  (รวม ${days} วันทำงาน)\n${noteLine(c.note)}\n\nแตะปุ่มด้านล่างเพื่อแก้ไข แล้วกด “ส่งคำขอ”`;
+  return qrMsg(text, [
+    qrPicker("📅 ตั้งแต่", "cf:date", "date", start),
+    qrPicker("📅 ถึง", "cf:end", "date", end),
+    qrPost("✏️ หมายเหตุ", "cf:note"),
+    qrPost("✅ ส่งคำขอ", "cf:submit"),
+    qrPost("✖️ ยกเลิก", "cf:cancel"),
+    qrUri("📄 ฟอร์มเต็ม", fullUri),
+  ]);
 }
 
 /* ---------- public entry points ---------- */
@@ -188,7 +216,7 @@ export async function maybeCollectNote(ctx: CfCtx, text: string): Promise<LineMe
   c.note = text.slice(0, 500);
   c.awaitingNote = false;
   await save(ctx, conv.id, c);
-  return [await renderCard(ctx, c)];
+  return [await renderCard(ctx, c, "✅ บันทึกหมายเหตุแล้ว\n\n")];
 }
 
 async function submit(ctx: CfCtx, id: string, c: CfContext): Promise<LineMessage[]> {
