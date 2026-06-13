@@ -141,6 +141,34 @@
   display: flex; gap: 7px;
 }
 
+/* ---------- attendance / clock ---------- */
+.clock-hero {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 22px 16px; border-radius: 20px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--primary) 10%, var(--surface)), var(--surface));
+  border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+}
+.clock-time { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); line-height: 1.05; }
+.clock-tz { font-size: 12px; color: var(--text-muted); }
+
+.att-status { display: flex; flex-direction: column; gap: 10px; }
+.att-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 14px 16px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-sm);
+}
+.att-row.is-on { border-color: color-mix(in srgb, var(--success) 45%, var(--border)); }
+.att-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--border-strong); flex: 0 0 auto; }
+.att-dot[data-on="true"] { background: var(--success); box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 18%, transparent); }
+.att-label { font-size: 14px; color: var(--text-muted); }
+.att-val { font-size: 18px; font-weight: 700; color: var(--text); margin-left: auto; }
+.att-late { font-size: 11.5px; font-weight: 600; color: var(--warning); background: var(--warning-soft); padding: 3px 9px; border-radius: 999px; }
+
+.clock-btn.in { background: linear-gradient(180deg, color-mix(in srgb, var(--success) 90%, #fff), var(--success)); box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--success) 85%, transparent); }
+.clock-btn.out { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 90%, #fff), var(--accent)); box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--accent) 85%, transparent); }
+.att-done { text-align: center; font-size: 14px; font-weight: 500; color: var(--success); padding: 14px; background: var(--success-soft); border-radius: 14px; }
+.att-note { margin: 0; font-size: 12px; color: var(--text-faint); text-align: center; }
+
 /* ---------- sticky footer ---------- */
 .liff-foot {
   position: sticky; bottom: 0;

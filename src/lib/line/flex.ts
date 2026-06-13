@@ -473,6 +473,149 @@ export function otApprovalResultFlex(p: {
   return flex(p.approved ? "คำขอ OT ได้รับอนุมัติ" : "คำขอ OT ถูกปฏิเสธ", bubble(body, { size: "mega" }));
 }
 
+/* ---------- Document cards ---------- */
+
+/** Document-request receipt (sent after a successful LIFF submit). */
+export function docReceiptFlex(p: {
+  requestNo: string; typeName: string; language: string; purpose?: string | null; status?: string;
+}): LineMessage {
+  const status = p.status ?? "pending";
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: "#05be8a", paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: "✓", size: "lg", color: "#ffffff", align: "center", weight: "bold" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: "ส่งคำขอเอกสารแล้ว", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: "ส่งให้ฝ่ายบุคคลดำเนินการเรียบร้อย", color: "#eafff7", size: "xs" },
+          ] },
+        ],
+      },
+      {
+        type: "box", layout: "vertical", paddingAll: "18px", spacing: "md",
+        contents: [
+          row("ประเภท", p.typeName, { strong: true }),
+          row("ภาษา", p.language),
+          ...(p.purpose ? [row("วัตถุประสงค์", p.purpose)] : []),
+          { type: "separator", color: BORDER },
+          row("เลขที่คำขอ", p.requestNo),
+          statusRow(status),
+        ],
+      },
+    ],
+  };
+  return flex(`ส่งคำขอเอกสารแล้ว ${p.requestNo}`, bubble(body, { size: "mega" }));
+}
+
+/** Document approval request sent to an approver (HR) with action buttons. */
+export function docApprovalRequestFlex(p: {
+  requestId: string; employeeName: string; typeName: string; language: string;
+  purpose?: string | null; requestNo: string;
+}): LineMessage {
+  const detail = [
+    row("พนักงาน", p.employeeName, { strong: true }),
+    row("ประเภท", p.typeName),
+    row("ภาษา", p.language),
+    ...(p.purpose ? [row("วัตถุประสงค์", p.purpose)] : []),
+    { type: "separator", color: BORDER },
+    row("เลขที่", p.requestNo),
+  ];
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: "#e8920c", paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: "📄", size: "lg", align: "center" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: "คำขอเอกสารรออนุมัติ", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: "กรุณาพิจารณาคำขอด้านล่าง", color: "#fff4e0", size: "xs" },
+          ] },
+        ],
+      },
+      { type: "box", layout: "vertical", paddingAll: "18px", spacing: "md", contents: detail },
+    ],
+  };
+  const footer = {
+    type: "box", layout: "horizontal", spacing: "sm", paddingAll: "16px", paddingTop: "0px",
+    contents: [
+      { type: "button", style: "secondary", height: "sm", action: { type: "postback", label: "ปฏิเสธ", data: `docreject:${p.requestId}`, displayText: "❌ ปฏิเสธคำขอเอกสาร" } },
+      { type: "button", style: "primary", color: "#05be8a", height: "sm", action: { type: "postback", label: "อนุมัติ", data: `docapprove:${p.requestId}`, displayText: "✅ อนุมัติคำขอเอกสาร" } },
+    ],
+  };
+  return flex(`คำขอเอกสารรออนุมัติ — ${p.employeeName}`, bubble(body, { footer, size: "mega" }));
+}
+
+/** Document approval result sent to the employee. */
+export function docApprovalResultFlex(p: {
+  approved: boolean; typeName: string; language: string; requestNo: string;
+  reason?: string | null; byName?: string | null;
+}): LineMessage {
+  const color = p.approved ? "#05be8a" : "#ef5350";
+  const detail = [
+    row("ประเภท", p.typeName),
+    row("ภาษา", p.language),
+    ...(p.byName ? [row(p.approved ? "ผู้อนุมัติ" : "ผู้พิจารณา", p.byName)] : []),
+    ...(!p.approved && p.reason ? [row("เหตุผล", p.reason)] : []),
+    { type: "separator", color: BORDER },
+    row("เลขที่", p.requestNo),
+  ];
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: color, paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: p.approved ? "✓" : "✕", size: "lg", color: "#ffffff", align: "center", weight: "bold" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: p.approved ? "คำขอเอกสารได้รับอนุมัติ" : "คำขอเอกสารถูกปฏิเสธ", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: p.approved ? "ฝ่ายบุคคลกำลังจัดทำเอกสารให้ 📄" : "โปรดติดต่อ HR หากมีข้อสงสัย", color: "#ffffff", size: "xs" },
+          ] },
+        ],
+      },
+      { type: "box", layout: "vertical", paddingAll: "18px", spacing: "md", contents: detail },
+    ],
+  };
+  return flex(p.approved ? "คำขอเอกสารได้รับอนุมัติ" : "คำขอเอกสารถูกปฏิเสธ", bubble(body, { size: "mega" }));
+}
+
+/* ---------- Attendance card ---------- */
+
+/** Check-in / check-out confirmation (sent after a LIFF clock action). */
+export function attendanceReceiptFlex(p: {
+  kind: "in" | "out"; timeText: string; dateText: string; workMode: string;
+  late?: boolean; lateMinutes?: number; locationName?: string | null; workedText?: string | null;
+}): LineMessage {
+  const isIn = p.kind === "in";
+  const color = isIn ? "#3c8cf3" : "#745af2";
+  const detail = [
+    row(isIn ? "เวลาเข้า" : "เวลาออก", p.timeText, { strong: true }),
+    row("วันที่", p.dateText),
+    row("รูปแบบ", p.workMode),
+    ...(p.locationName ? [row("สถานที่", p.locationName)] : []),
+    ...(p.workedText ? [row("รวมเวลางาน", p.workedText)] : []),
+  ];
+  const body = {
+    type: "box", layout: "vertical", paddingAll: "0px",
+    contents: [
+      {
+        type: "box", layout: "horizontal", backgroundColor: color, paddingAll: "18px", spacing: "md",
+        contents: [
+          { type: "box", layout: "vertical", flex: 0, width: "34px", height: "34px", backgroundColor: "#ffffff33", cornerRadius: "10px", justifyContent: "center", contents: [{ type: "text", text: isIn ? "🟢" : "🔵", size: "md", align: "center" }] },
+          { type: "box", layout: "vertical", justifyContent: "center", contents: [
+            { type: "text", text: isIn ? "ลงเวลาเข้างานแล้ว" : "ลงเวลาออกงานแล้ว", color: "#ffffff", weight: "bold", size: "lg" },
+            { type: "text", text: isIn ? (p.late ? `เข้างานสาย ${p.lateMinutes ?? 0} นาที` : "ตรงเวลา ขอให้เป็นวันที่ดี 🙌") : "ขอบคุณสำหรับวันนี้ 🙌", color: "#ffffffcc", size: "xs" },
+          ] },
+        ],
+      },
+      { type: "box", layout: "vertical", paddingAll: "18px", spacing: "md", contents: detail },
+    ],
+  };
+  return flex(isIn ? "ลงเวลาเข้างานแล้ว" : "ลงเวลาออกงานแล้ว", bubble(body, { size: "mega" }));
+}
+
 /** Welcome / linked-success card. */
 export function welcomeFlex(p: { name: string; linked: boolean; leaveUri?: string }): LineMessage {
   return infoFlex({

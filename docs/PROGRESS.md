@@ -6,8 +6,8 @@
 ---
 
 ## สถานะรวม
-- **Phase ปัจจุบัน:** Phase 3 ครบ + **OT flow ครบวงจร ✅** (ฟอร์ม LIFF + dashboard + อนุมัติผ่าน LINE) บน approval engine กลางตัวเดียว
-- **ถัดไป:** ต่อ flow **ลงเวลา (attendance)** + **เอกสาร (document)** ด้วย engine เดิม (เหลือเขียน descriptor + ฟอร์ม + การ์ด); แล้วค่อย Phase 4 AI layer
+- **Phase ปัจจุบัน:** Phase 3 ครบ + **4 flow ครบวงจร: ลา · OT · เอกสาร · ลงเวลา ✅** (LIFF form + dashboard + LINE) — 3 อันแรกใช้ approval engine กลาง, ลงเวลาเป็น time-clock แยก
+- **ถัดไป:** Phase 4 AI layer (intent → slot-filling → confirm) หรือ polish/รายงาน
 - **Supabase:** Singapore (aws-1 pooler) · migrations ถึง **0009** · Demo Co seeded (6 พนักงาน, admin user) · OT policy/rates/workflow seed พร้อมจาก `seed_tenant_defaults`
 - **Login dashboard:** admin@demo.co / Demo!2026
 - **อัปเดตล่าสุด:** 2026-06-13
@@ -39,6 +39,27 @@
 ---
 
 ## บันทึกรายวัน
+
+### 2026-06-13 — flow เอกสาร + ลงเวลา ครบวงจร ✅ (impeccable)
+**เอกสาร (approval — ใช้ engine กลาง):**
+- `src/lib/approval/document.ts` — descriptor (document_requests/document_approval_steps, module=document) + `instantiateDocumentApproval`/`actOnDocRequest`
+- Flex: `docReceiptFlex`/`docApprovalRequestFlex`(postback `docapprove:`/`docreject:`)/`docApprovalResultFlex`
+- LIFF `/liff/document` — เลือกประเภท (5 ชนิด chips) + ภาษา (ไทย/อังกฤษ) + เดือน/ปี (เฉพาะชนิด requires_salary) + วัตถุประสงค์
+- Dashboard `/dashboard/documents` — mirror OT (filter + อนุมัติ/ปฏิเสธ)
+- **verify:** temp route create→instantiate (HR step เดียว=ปนัดดา)→approve→approved ✅ + screenshot ฟอร์มผ่าน (ref-month โผล่เฉพาะสลิป)
+
+**ลงเวลา (time-clock — ไม่ใช่ approval):**
+- `src/lib/attendance.ts` — bangkokNow, formatTimeBkk, timeToMinutes, workedDuration, workModeLabel
+- LIFF `/liff/checkin` — `checkin-client.tsx`: clock hero สด + สถานะเข้า/ออก + toggle ออฟฟิศ/บ้าน + ปุ่มเช็คอิน(เขียว)/เช็คเอาท์(ม่วง) + GPS best-effort
+- `actions.ts` — `resolveAttendance` (record วันนี้+policy), `checkIn` (upsert, คำนวณสายจาก work_start+grace, gen ATT, push ใบเสร็จ), `checkOut` (update + รวมเวลางาน)
+- `attendanceReceiptFlex` (เข้า=น้ำเงิน/ออก=ม่วง)
+- Dashboard `/dashboard/attendance` — read-only: filter (ทั้งหมด/วันนี้/มาสาย/ไม่ลงออก) + การ์ดเข้า→ออก+รวมเวลา+badge สาย
+- **verify:** temp route checkIn→กันซ้ำ→checkOut→กันซ้ำ ✅ record ATT ครบ + screenshot หน้าลงเวลาผ่าน (clock hero+ปุ่ม)
+
+**Wiring (ทั้งสอง):** webhook ปุ่ม/keyword เปิดฟอร์ม (เอกสาร/ลงเวลา), docapprove/docreject, status รวมเอกสารด้วย · next.config rewrite `/liff/leave/{document,checkin}` → ปลายทาง (เปิดผ่าน `liff.line.me/{id}/{document,checkin}` in-scope) · leave transit splash รองรับ document/checkin · setup-rich-menu ปุ่มลงเวลา+เอกสารเป็น uri · sidebar เปิดเมนูจริง
+- **ไม่ต้อง migration:** ตาราง+policy+doc types+workflow seed พร้อมจาก `seed_tenant_defaults`
+- **ค้าง:** ต้อง re-run `setup-rich-menu.mjs` หลัง deploy (ปุ่มชี้ path ใหม่) · GPS geofence (work_locations ว่าง) ยังไม่จับคู่ · เอกสารยังไม่ generate ไฟล์จริง (generated_documents) — Phase ถัดไป
+
 
 ### 2026-06-13 — Phase 3.x: OT flow ครบวงจร ✅ (impeccable craft · refactor engine เป็น generic)
 - **Refactor approval engine → generic** (`src/lib/approval/`): แตกเป็น `core.ts` (control-flow ขับด้วย **module descriptor**: ตาราง request/step + ฟังก์ชันสร้างการ์ด Flex ฉีดเข้า) + `leave.ts` + `ot.ts` + `index.ts` (re-export). wrapper เดิม `instantiateLeaveApproval`/`actOnLeaveRequest` คงลายเซ็น → call site ลา (webhook/dashboard) ไม่ต้องแก้. เพิ่ม `instantiateOtApproval`/`actOnOtRequest`. ลบ `src/lib/approval.ts` เดิม

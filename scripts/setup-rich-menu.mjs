@@ -53,6 +53,12 @@ const leaveAction = liffId
 const otAction = liffId
   ? { type: "uri", uri: `https://liff.line.me/${liffId}/ot` }
   : { type: "postback", data: "action=ot", displayText: "ขอ OT" };
+const checkinAction = liffId
+  ? { type: "uri", uri: `https://liff.line.me/${liffId}/checkin` }
+  : { type: "postback", data: "action=checkin", displayText: "ลงเวลา" };
+const documentAction = liffId
+  ? { type: "uri", uri: `https://liff.line.me/${liffId}/document` }
+  : { type: "postback", data: "action=document", displayText: "ขอเอกสาร" };
 
 const richmenu = {
   size: { width: W, height: H },
@@ -62,8 +68,8 @@ const richmenu = {
   areas: [
     { bounds: bounds(0, 0), action: leaveAction },
     { bounds: bounds(1, 0), action: otAction },
-    { bounds: bounds(2, 0), action: { type: "postback", data: "action=checkin", displayText: "ลงเวลา" } },
-    { bounds: bounds(0, 1), action: { type: "postback", data: "action=document", displayText: "ขอเอกสาร" } },
+    { bounds: bounds(2, 0), action: checkinAction },
+    { bounds: bounds(0, 1), action: documentAction },
     { bounds: bounds(1, 1), action: { type: "postback", data: "action=status", displayText: "สถานะคำขอ" } },
     { bounds: bounds(2, 1), action: { type: "postback", data: "action=contact", displayText: "ติดต่อ HR" } },
   ],

@@ -19,6 +19,8 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       { source: "/liff/leave/ot", destination: "/liff/ot" },
+      { source: "/liff/leave/document", destination: "/liff/document" },
+      { source: "/liff/leave/checkin", destination: "/liff/checkin" },
     ];
   },
 };

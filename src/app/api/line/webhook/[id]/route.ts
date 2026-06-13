@@ -3,8 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptSecret } from "@/lib/crypto";
 import { verifyLineSignature } from "@/lib/line/verify";
 import { replyMessage, textMsg, type LineMessage } from "@/lib/line/client";
-import { infoFlex, comingSoonFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
-import { actOnLeaveRequest, actOnOtRequest } from "@/lib/approval";
+import { infoFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
+import { actOnLeaveRequest, actOnOtRequest, actOnDocRequest } from "@/lib/approval";
 import { otRateLabel } from "@/lib/ot";
 
 export const runtime = "nodejs";
@@ -84,6 +84,16 @@ function otLink(ctx: Ctx) {
   return ctx.baseUrl ? `${ctx.baseUrl}/liff/ot?acct=${ctx.acctId}` : "";
 }
 
+function docLink(ctx: Ctx) {
+  if (ctx.liffId) return `https://liff.line.me/${ctx.liffId}/document`;
+  return ctx.baseUrl ? `${ctx.baseUrl}/liff/document?acct=${ctx.acctId}` : "";
+}
+
+function checkinLink(ctx: Ctx) {
+  if (ctx.liffId) return `https://liff.line.me/${ctx.liffId}/checkin`;
+  return ctx.baseUrl ? `${ctx.baseUrl}/liff/checkin?acct=${ctx.acctId}` : "";
+}
+
 async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx, ev: LineEvent) {
   const userId = ev.source?.userId;
   const reply = (messages: LineMessage[]) => ev.replyToken ? replyMessage(ctx.accessToken, ev.replyToken, messages) : null;
@@ -114,6 +124,23 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
         ? "ปฏิเสธคำขอ OT แล้ว — ระบบแจ้งผลให้พนักงานเรียบร้อย"
         : res.final === "approved"
           ? "อนุมัติคำขอ OT เรียบร้อย ✅ ระบบแจ้งผลให้พนักงานแล้ว"
+          : "อนุมัติขั้นของคุณแล้ว ✅ ส่งต่อให้ผู้อนุมัติลำดับถัดไป";
+      return reply([textMsg(msg)]);
+    }
+
+    // Document approval decisions
+    const docMatch = /^(docapprove|docreject):(.+)$/.exec(data);
+    if (docMatch) {
+      const decision = docMatch[1] === "docapprove" ? "approved" : "rejected";
+      const res = await actOnDocRequest(admin, {
+        tenantId: ctx.tenantId, requestId: docMatch[2], decision,
+        byName: emp.first_name, requireApproverId: emp.id,
+      });
+      if (!res.ok) return reply([textMsg(`⚠️ ${res.error}`)]);
+      const msg = decision === "rejected"
+        ? "ปฏิเสธคำขอเอกสารแล้ว — ระบบแจ้งผลให้พนักงานเรียบร้อย"
+        : res.final === "approved"
+          ? "อนุมัติคำขอเอกสารเรียบร้อย ✅ ระบบแจ้งผลให้พนักงานแล้ว"
           : "อนุมัติขั้นของคุณแล้ว ✅ ส่งต่อให้ผู้อนุมัติลำดับถัดไป";
       return reply([textMsg(msg)]);
     }
@@ -149,6 +176,8 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
     if (emp) {
       // keyword shortcuts so it works even before/without the rich menu
       if (/โอที|\bo\.?t\b/i.test(text)) return reply(await actionReply(admin, ctx, emp, "ot"));
+      if (/ลงเวลา|เช็คอิน|เช็คเอาท์|check\s?in|check\s?out/i.test(text)) return reply(await actionReply(admin, ctx, emp, "checkin"));
+      if (/เอกสาร|หนังสือรับรอง|สลิป|document/i.test(text)) return reply(await actionReply(admin, ctx, emp, "document"));
       if (/ลา|leave/i.test(text)) return reply(await actionReply(admin, ctx, emp, "leave"));
       if (/สถานะ|status/i.test(text)) return reply(await actionReply(admin, ctx, emp, "status"));
       return reply([textMsg(`สวัสดีคุณ${emp.first_name} 🙌\nเลือกบริการจากเมนูด้านล่าง หรือพิมพ์ “ลางาน” เพื่อเริ่มได้เลย`)]);
@@ -186,10 +215,24 @@ async function actionReply(
         altText: "ขอทำ OT", button: { label: "เปิดฟอร์ม OT", uri: url },
       })];
     }
-    case "checkin":
-      return [comingSoonFlex("ลงเวลาเข้า–ออกงาน", "✅")];
-    case "document":
-      return [comingSoonFlex("ขอเอกสาร", "📄")];
+    case "checkin": {
+      const url = checkinLink(ctx);
+      if (!url) return [textMsg("ขออภัย ระบบลงเวลายังไม่พร้อมใช้งานชั่วคราว")];
+      return [infoFlex({
+        color: "#3c8cf3", emoji: "🕘", title: "ลงเวลาทำงาน",
+        text: "กดปุ่มด้านล่างเพื่อเช็คอินเข้างาน/เช็คเอาท์ออกงาน ระบบบันทึกเวลาให้อัตโนมัติ",
+        altText: "ลงเวลาทำงาน", button: { label: "เปิดหน้าลงเวลา", uri: url },
+      })];
+    }
+    case "document": {
+      const url = docLink(ctx);
+      if (!url) return [textMsg("ขออภัย ระบบฟอร์มเอกสารยังไม่พร้อมใช้งานชั่วคราว")];
+      return [infoFlex({
+        color: "#745af2", emoji: "📄", title: "ขอเอกสาร",
+        text: "กดปุ่มด้านล่างเพื่อเลือกประเภทเอกสารที่ต้องการ ระบบจะส่งให้ฝ่ายบุคคลจัดทำให้",
+        altText: "ขอเอกสาร", button: { label: "เปิดฟอร์มขอเอกสาร", uri: url },
+      })];
+    }
     case "contact":
       return [contactFlex()];
     default:
@@ -203,13 +246,17 @@ async function statusReply(
   admin: ReturnType<typeof createAdminClient>, tenantId: string,
   emp: { id: string; first_name: string },
 ): Promise<LineMessage> {
-  const [{ data: leave }, { data: ot }] = await Promise.all([
+  const [{ data: leave }, { data: ot }, { data: docs }] = await Promise.all([
     admin.from("leave_requests")
       .select("request_no, start_date, end_date, total_days, status, created_at, leave_types(name)")
       .eq("tenant_id", tenantId).eq("employee_id", emp.id)
       .is("deleted_at", null).order("created_at", { ascending: false }).limit(5),
     admin.from("ot_requests")
       .select("request_no, ot_date, total_hours, rate_type, status, created_at")
+      .eq("tenant_id", tenantId).eq("employee_id", emp.id)
+      .is("deleted_at", null).order("created_at", { ascending: false }).limit(5),
+    admin.from("document_requests")
+      .select("request_no, status, created_at, document_types(name)")
       .eq("tenant_id", tenantId).eq("employee_id", emp.id)
       .is("deleted_at", null).order("created_at", { ascending: false }).limit(5),
   ]);
@@ -225,6 +272,13 @@ async function statusReply(
     ...(ot ?? []).map((r) => ({
       title: `OT · ${otRateLabel(r.rate_type as string)}`,
       sub: `${r.ot_date} · ${r.total_hours} ชม.`,
+      status: r.status as string,
+      requestNo: r.request_no as string,
+      createdAt: String(r.created_at),
+    })),
+    ...(docs ?? []).map((r) => ({
+      title: `เอกสาร · ${(r.document_types as { name?: string } | null)?.name ?? "เอกสาร"}`,
+      sub: "คำขอเอกสาร",
       status: r.status as string,
       requestNo: r.request_no as string,
       createdAt: String(r.created_at),

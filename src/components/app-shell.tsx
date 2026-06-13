@@ -39,8 +39,8 @@ const SIDEBAR: Record<string, { title: string; items: Item[] }> = {
     items: [
       { label: "การลา", Icon: IconLeave, href: "/dashboard/leave" },
       { label: "OT", Icon: IconClock, href: "/dashboard/ot" },
-      { label: "ลงเวลา", Icon: IconCheckin, soon: true },
-      { label: "เอกสาร", Icon: IconDocument, soon: true },
+      { label: "ลงเวลา", Icon: IconCheckin, href: "/dashboard/attendance" },
+      { label: "เอกสาร", Icon: IconDocument, href: "/dashboard/documents" },
     ],
   },
   settings: {
@@ -60,6 +60,8 @@ const TITLES: Record<string, string> = {
   "/dashboard/positions": "ตำแหน่ง",
   "/dashboard/leave": "การลา",
   "/dashboard/ot": "OT",
+  "/dashboard/attendance": "ลงเวลา",
+  "/dashboard/documents": "เอกสาร",
 };
 
 function catFromPath(path: string): string {

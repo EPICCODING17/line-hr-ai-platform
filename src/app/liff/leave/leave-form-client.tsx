@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { LiffLoading, LeaveLoadingIcon, OtLoadingIcon } from "../liff-loading";
+import { LiffLoading, LeaveLoadingIcon, OtLoadingIcon, DocLoadingIcon, CheckinLoadingIcon } from "../liff-loading";
 import { resolveEmployee, submitLeaveRequest, type LeaveBalance } from "./actions";
 
 export type LeaveTypeOption = {
@@ -168,10 +168,12 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes, transit
   // ---------- render ----------
   // Endpoint transit → splash for the destination form, never the leave form.
   if (transitTarget) {
-    const ot = transitTarget.toLowerCase().includes("ot");
-    return ot
-      ? <LiffLoading title="กำลังเตรียมฟอร์ม OT" sub="แป๊บเดียว กำลังดึงข้อมูลของคุณ" icon={<OtLoadingIcon />} />
-      : <LiffLoading title="กำลังเปิดฟอร์ม…" sub="แป๊บเดียว กำลังดึงข้อมูลของคุณ" />;
+    const t = transitTarget.toLowerCase();
+    const sub = "แป๊บเดียว กำลังดึงข้อมูลของคุณ";
+    if (t.includes("ot")) return <LiffLoading title="กำลังเตรียมฟอร์ม OT" sub={sub} icon={<OtLoadingIcon />} />;
+    if (t.includes("document")) return <LiffLoading title="กำลังเตรียมฟอร์มเอกสาร" sub={sub} icon={<DocLoadingIcon />} />;
+    if (t.includes("checkin")) return <LiffLoading title="กำลังเตรียมลงเวลา" sub={sub} icon={<CheckinLoadingIcon />} />;
+    return <LiffLoading title="กำลังเปิดฟอร์ม…" sub={sub} />;
   }
   if (phase.k === "init") return <Loading />;
   if (phase.k === "needlink") return <NeedLink />;
