@@ -34,7 +34,7 @@
 - [x] **Phase 2** — LINE + LIFF แบบ structured (Rich Menu → form, ยังไม่มี AI)
 - [x] **Phase 3** — Approval Workflow engine (configurable) + Notification — **ลา + OT ใช้ engine กลางตัวเดียว**
 - [ ] **Phase 3.x** — flow ที่เหลือบน engine เดิม: ลงเวลา (attendance) · เอกสาร (document)
-- [~] **Phase 4** — AI layer: **intent routing ทำแล้ว** (NL → intent → form); เหลือ slot-filling + multi-turn
+- [~] **Phase 4** — AI layer: **intent routing + slot-filling ทำแล้ว** (NL → intent + ดึงวัน/เวลา/ประเภท → เติมฟอร์ม); เหลือ multi-turn dialog
 - [ ] **Phase 5** — Payroll + Billing + PDPA
 
 ---
@@ -47,6 +47,14 @@
 - **`.env.example`** เพิ่ม `ANTHROPIC_API_KEY` + `ANTHROPIC_MODEL` (แทน OPENAI เดิม)
 - **verify:** tsc + `next build` ผ่าน (SDK รับ output_config+effort). **ยังไม่ได้เทส classification จริง** เพราะไม่มี API key ใน env — จะ active เมื่อ Pong ใส่คีย์บน Vercel; fallback (ไม่มีคีย์) ปลอดภัย คงพฤติกรรม keyword เดิม
 - **ค้าง:** slot-filling (ดึงวัน/เวลา/ประเภทเติมฟอร์มผ่าน query param) + multi-turn dialog (`ai_conversations` state) + async (`line_webhook_events` processing) ยังไม่ทำ
+
+### 2026-06-13 — Phase 4: AI slot-filling ✅ (เติมฟอร์มอัตโนมัติ)
+- **`intent.ts`** ขยาย: เพิ่ม **today (เวลาไทย) ในพรอมป์** เพื่อแปลงวันสัมพัทธ์ ("พรุ่งนี้"→YYYY-MM-DD) + schema มี `slots` (leaveType/start/end/halfDay · otDate/start/end · docType/language · reason) ทุกฟิลด์ nullable+required (เข้ากับ structured output แบบ strict)
+- **`src/lib/ai/prefill.ts`** — `buildPrefill(intent, slots)` validate (date/time regex, map category/doc code) → object ต่อฟอร์ม + `encodePrefill`/`decodePrefill` (**base64url** กันไทย/อักขระเพี้ยนตอนผ่าน `liff.state` ของฟอร์ม sub-path)
+- **webhook**: AI branch (leave/ot/document) สร้างการ์ดลิงก์ `…?pre=<base64url>` (`prefilledFormCard`)
+- **ฟอร์ม leave/ot/document**: page ถอด `pre` (server) → ส่ง `prefill` prop → client seed state เริ่มต้น (ประเภท/วัน/เวลา/เหตุผล) · OT auto-rate คำนวณใหม่ตามวันที่ที่เติม
+- **verify:** tsc + build สะอาด · screenshot ฟอร์มลา (ลาป่วย+วันที่+เหตุผลไทย) & OT (22:00→02:00 ข้ามคืน+auto×2+รวม 4 ชม.) เติมครบ · production: ส่ง NL จำลอง "คืนนี้ขออยู่ทำงานต่อถึงตีสอง" → intent ot conf 0.95, log สำเร็จ (schema slots ใหม่ไม่ 400 บน Haiku)
+- หมายเหตุ latency คลาสซิฟาย ~3–9 วิ (cold start + พรอมป์ ~1.2k token) — รับได้ (replyToken ใช้ได้ ~30 วิ); ปรับได้ด้วย prompt caching ภายหลัง
 
 ### 2026-06-13 — flow เอกสาร + ลงเวลา ครบวงจร ✅ (impeccable)
 **เอกสาร (approval — ใช้ engine กลาง):**
