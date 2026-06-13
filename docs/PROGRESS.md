@@ -48,7 +48,13 @@
   - postback `cf:date|start|end|note|submit|cancel` → `onChatPostback`; พิมพ์ข้อความตอน awaitingNote → `maybeCollectNote`
   - **พิมพ์** "ลา"/"โอที" หรือ AI จัด intent leave/ot → เปิด in-chat form (เมนู rich menu ยังเปิดฟอร์มเต็มเหมือนเดิม)
 - **verify production:** จำลอง postback ครบวงจร (text→conv→เลือกเวลา×2→หมายเหตุ→ยกเลิก) state อัปเดตถูกทุกสเต็ป ✅; submit ใช้ action ที่ verify แล้ว
-- **ค้าง:** การ์ด in-chat ยังไม่ได้ดูตาจริง (datetimepicker เห็นใน LINE เท่านั้น headless ถ่ายไม่ได้) — รอ Pong ลองในมือถือ; prompt caching ลด latency loading ภายหลัง
+- **ค้าง:** prompt caching ลด latency loading ภายหลัง
+
+#### แก้บั๊ก: พิมพ์ "ลา/โอที" แล้วการ์ดไม่ขึ้น (นิ่ง)
+- **อาการ:** พิมพ์ "ลา" → ไม่มีอะไรขึ้น (LINE reply เงียบ)
+- **Root cause:** ปุ่มในการ์ด in-chat ใส่ค่าวัน/เวลา/หมายเหตุไปต่อใน action `label` (เช่น `📅 ตั้งแต่: 2026-06-13`) → **เกิน 20 ตัวอักษร** (เพดาน label ของ LINE) → ทั้งข้อความ Flex ถูก reject (400) → ไม่มีข้อความขึ้น
+- **Fix:** `label` ปุ่มสั้นคงที่ ("เลือกวัน"/"เลือกเวลา"/"เพิ่ม") ค่าปัจจุบันย้ายไป text แยกในแต่ละแถว (`fieldRow`/`noteRow`)
+- **verify:** temp route push การ์ดจริง (leave+ot) → LINE ตอบ **200 sentMessages** (ยืนยันการ์ดถูกต้อง + เห็นหน้าตาจริงในบัญชีทดสอบ) แล้วลบ route
 
 ### 2026-06-13 — Phase 4 เริ่ม: AI intent routing ✅ (Claude)
 - **`src/lib/ai/intent.ts`** — `classifyIntent(text)` ยิง Claude 1 call (`@anthropic-ai/sdk`, model `claude-opus-4-8` ค่าเริ่ม, override ได้ด้วย `ANTHROPIC_MODEL` เช่น haiku), **structured output** (`output_config.format` json_schema) + `effort: "low"` → `{intent, confidence, reply}`. 7 intent: leave/ot/document/attendance/status/greeting/unknown. **no-op คืน null ถ้าไม่มี `ANTHROPIC_API_KEY`** (บอตยัง routing ด้วย keyword ได้)
