@@ -56,6 +56,12 @@
 - **Fix:** `label` ปุ่มสั้นคงที่ ("เลือกวัน"/"เลือกเวลา"/"เพิ่ม") ค่าปัจจุบันย้ายไป text แยกในแต่ละแถว (`fieldRow`/`noteRow`)
 - **verify:** temp route push การ์ดจริง (leave+ot) → LINE ตอบ **200 sentMessages** (ยืนยันการ์ดถูกต้อง + เห็นหน้าตาจริงในบัญชีทดสอบ) แล้วลบ route
 
+#### แก้บั๊ก: การ์ด in-chat "ส่งซ้ำ 2-3 รอบ"
+- **อาการ:** แตะปุ่มเลือกวัน/เวลาแล้วการ์ดเด้งซ้ำกองในแชต
+- **Root cause:** ทุก picker postback `renderCard` ส่ง **การ์ด Flex เต็มใบใหม่** (LINE แก้ข้อความเดิมไม่ได้) → แตะ N ครั้ง = N การ์ด. (ตรวจแล้วไม่ใช่ dedup/retry: `line_messages`/`line_webhook_events` ไม่ซ้ำ, `unique(dedup_key)` มีอยู่)
+- **Fix:** เปลี่ยนเป็น **Quick Reply** — ปุ่ม (datetimepicker/postback/uri) ลอยเหนือคีย์บอร์ด ไม่กองในแชต; แต่ละ action ตอบ "ข้อความสรุปสั้น + ปุ่มชุดเดิม" แทนการ์ดเต็ม (`chatflow.ts` ใช้ `qrMsg`); ลบ `chatOtFlex`/`chatLeaveFlex` ทิ้ง
+- **verify:** push quick-reply จริง → LINE 200; flow state machine ผ่านอยู่แล้ว
+
 ### 2026-06-13 — Phase 4 เริ่ม: AI intent routing ✅ (Claude)
 - **`src/lib/ai/intent.ts`** — `classifyIntent(text)` ยิง Claude 1 call (`@anthropic-ai/sdk`, model `claude-opus-4-8` ค่าเริ่ม, override ได้ด้วย `ANTHROPIC_MODEL` เช่น haiku), **structured output** (`output_config.format` json_schema) + `effort: "low"` → `{intent, confidence, reply}`. 7 intent: leave/ot/document/attendance/status/greeting/unknown. **no-op คืน null ถ้าไม่มี `ANTHROPIC_API_KEY`** (บอตยัง routing ด้วย keyword ได้)
 - **wire webhook**: ข้อความ free-form ที่ keyword จับไม่ได้ → `classifyIntent` → ตอบ ack (reply ไทยจาก AI) + เปิดฟอร์มตาม intent (leave/ot/document/attendance/status) หรือข้อความช่วยเหลือ (greeting/unknown). log ลง `ai_intent_logs` (intent/confidence/model/tokens/latency, best-effort)
