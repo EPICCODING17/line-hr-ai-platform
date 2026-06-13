@@ -47,6 +47,12 @@ const bounds = (c, r) => ({ x: c === 2 ? COL * 2 : COL * c, y: r * ROW, width: c
 const leaveAction = liffId
   ? { type: "uri", uri: `https://liff.line.me/${liffId}` }
   : { type: "postback", data: "action=leave", displayText: "ขอลางาน" };
+// LINE concatenates the path onto the LIFF endpoint (/liff/leave), so
+// `/{liffId}/ot` resolves to /liff/leave/ot — in-scope — which next.config
+// rewrites to the real /liff/ot route. Opens the OT form in one tap like leave.
+const otAction = liffId
+  ? { type: "uri", uri: `https://liff.line.me/${liffId}/ot` }
+  : { type: "postback", data: "action=ot", displayText: "ขอ OT" };
 
 const richmenu = {
   size: { width: W, height: H },
@@ -55,7 +61,7 @@ const richmenu = {
   chatBarText: "เมนูบริการ",
   areas: [
     { bounds: bounds(0, 0), action: leaveAction },
-    { bounds: bounds(1, 0), action: { type: "postback", data: "action=ot", displayText: "ขอ OT" } },
+    { bounds: bounds(1, 0), action: otAction },
     { bounds: bounds(2, 0), action: { type: "postback", data: "action=checkin", displayText: "ลงเวลา" } },
     { bounds: bounds(0, 1), action: { type: "postback", data: "action=document", displayText: "ขอเอกสาร" } },
     { bounds: bounds(1, 1), action: { type: "postback", data: "action=status", displayText: "สถานะคำขอ" } },

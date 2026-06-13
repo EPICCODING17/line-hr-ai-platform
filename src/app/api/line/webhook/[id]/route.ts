@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // 1) resolve the tenant's LINE channel from the path id
   const { data: acct } = await admin
     .from("line_accounts")
-    .select("id, tenant_id, channel_secret_enc, channel_access_token_enc, is_active")
+    .select("id, tenant_id, channel_secret_enc, channel_access_token_enc, liff_id, is_active")
     .eq("id", id).maybeSingle();
   if (!acct || !acct.is_active) return new Response("not found", { status: 404 });
 
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         });
         if (error) continue; // 23505 = already handled
       }
-      await handleEvent(admin, { tenantId, accessToken, acctId: id, baseUrl }, ev);
+      await handleEvent(admin, { tenantId, accessToken, acctId: id, baseUrl, liffId: (acct.liff_id as string) ?? null }, ev);
     } catch (e) {
       console.error("LINE event error", e);
     }
@@ -68,13 +68,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   return new Response("ok", { status: 200 });
 }
 
-type Ctx = { tenantId: string; accessToken: string; acctId: string; baseUrl: string };
+type Ctx = { tenantId: string; accessToken: string; acctId: string; baseUrl: string; liffId: string | null };
 
+// Prefer the LIFF launcher (opens in-LINE, in-scope, gets the user profile with
+// no login bounce). LINE appends the path onto the endpoint (/liff/leave), so
+// `/{liffId}/ot` → /liff/leave/ot, which next.config rewrites to /liff/ot.
+// Fall back to a raw URL only when the company has no LIFF configured yet.
 function leaveLink(ctx: Ctx) {
+  if (ctx.liffId) return `https://liff.line.me/${ctx.liffId}`;
   return ctx.baseUrl ? `${ctx.baseUrl}/liff/leave?acct=${ctx.acctId}` : "";
 }
 
 function otLink(ctx: Ctx) {
+  if (ctx.liffId) return `https://liff.line.me/${ctx.liffId}/ot`;
   return ctx.baseUrl ? `${ctx.baseUrl}/liff/ot?acct=${ctx.acctId}` : "";
 }
 

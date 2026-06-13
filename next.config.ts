@@ -11,6 +11,16 @@ const nextConfig: NextConfig = {
       ? [{ protocol: "https", hostname: supabaseHost }]
       : [],
   },
+  // The single LIFF app is registered with endpoint `/liff/leave`, so LINE only
+  // grants LIFF/login scope to paths UNDER /liff/leave. Other forms are opened
+  // via `liff.line.me/{id}/<form>` → LINE concatenates onto the endpoint path
+  // (`/liff/leave/<form>`), keeping them in-scope; these rewrites map them back
+  // to their real routes. Lets new forms ship without re-registering the LIFF.
+  async rewrites() {
+    return [
+      { source: "/liff/leave/ot", destination: "/liff/ot" },
+    ];
+  },
 };
 
 export default nextConfig;
