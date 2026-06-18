@@ -58,6 +58,48 @@ function row(label: string, value: string, opts: { strong?: boolean } = {}) {
   };
 }
 
+function contactRow(icon: string, label: string, value: string, accent: string, background: string) {
+  return {
+    type: "box",
+    layout: "horizontal",
+    spacing: "md",
+    paddingAll: "12px",
+    backgroundColor: background,
+    cornerRadius: "14px",
+    contents: [
+      {
+        type: "box",
+        layout: "vertical",
+        flex: 0,
+        width: "32px",
+        height: "32px",
+        cornerRadius: "10px",
+        backgroundColor: "#ffffff",
+        justifyContent: "center",
+        contents: [{ type: "text", text: icon, size: "md", align: "center" }],
+      },
+      {
+        type: "box",
+        layout: "vertical",
+        spacing: "xs",
+        contents: [
+          { type: "text", text: label, size: "xxs", color: MUTED },
+          { type: "text", text: value, size: "sm", weight: "bold", color: INK, wrap: true },
+        ],
+      },
+      {
+        type: "box",
+        layout: "vertical",
+        flex: 0,
+        width: "4px",
+        cornerRadius: "20px",
+        backgroundColor: accent,
+        contents: [{ type: "filler" }],
+      },
+    ],
+  };
+}
+
 // a coloured status pill, right-aligned within a labelled row
 function statusRow(status: string) {
   const s = statusOf(status);
@@ -302,20 +344,86 @@ export function contactFlex(contact: HrContact = {}): LineMessage {
   const body = {
     type: "box",
     layout: "vertical",
-    paddingAll: "20px",
-    spacing: "sm",
+    paddingAll: "0px",
+    backgroundColor: "#ffffff",
+    spacing: "none",
     contents: [
       {
-        type: "box", layout: "vertical", flex: 0, width: "46px", height: "46px",
-        backgroundColor: "#f2647a", cornerRadius: "14px", justifyContent: "center",
-        contents: [{ type: "text", text: "🎧", size: "xl", align: "center" }],
+        type: "box",
+        layout: "horizontal",
+        paddingAll: "18px",
+        spacing: "md",
+        backgroundColor: "#745af2",
+        contents: [
+          {
+            type: "box",
+            layout: "vertical",
+            flex: 0,
+            width: "42px",
+            height: "42px",
+            cornerRadius: "14px",
+            backgroundColor: "#ffffff",
+            justifyContent: "center",
+            contents: [{ type: "text", text: "🎧", size: "xl", align: "center" }],
+          },
+          {
+            type: "box",
+            layout: "vertical",
+            justifyContent: "center",
+            spacing: "xs",
+            contents: [
+              { type: "text", text: "ติดต่อฝ่ายบุคคล", weight: "bold", size: "lg", color: "#ffffff" },
+              {
+                type: "text",
+                text: "HR พร้อมช่วยเรื่องงาน เอกสาร และสถานะคำขอ",
+                size: "xs",
+                color: "#f2eeff",
+                wrap: true,
+              },
+            ],
+          },
+        ],
       },
-      { type: "text", text: "ติดต่อฝ่ายบุคคล", weight: "bold", size: "lg", color: INK, margin: "md" },
-      { type: "separator", color: BORDER, margin: "md" },
-      row("อีเมล", c.email),
-      row("โทรศัพท์", c.phone),
-      row("เวลาทำการ", c.hours),
-      ...(c.note ? [{ type: "text", text: c.note, size: "xs", color: MUTED, wrap: true, margin: "md" }] : []),
+      {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "18px",
+        spacing: "md",
+        contents: [
+          {
+            type: "box",
+            layout: "vertical",
+            paddingAll: "12px",
+            backgroundColor: "#f7f4ff",
+            cornerRadius: "14px",
+            contents: [
+              {
+                type: "text",
+                text: "เลือกช่องทางที่สะดวก ระบบจะใช้ข้อมูลล่าสุดจากหน้าแดชบอร์ด",
+                size: "xs",
+                color: "#5b4bb7",
+                wrap: true,
+              },
+            ],
+          },
+          contactRow("✉️", "อีเมล", c.email, "#745af2", "#f7f4ff"),
+          contactRow("☎️", "โทรศัพท์", c.phone, "#05be8a", "#f1fbf7"),
+          contactRow("⏰", "เวลาทำการ", c.hours, "#e8920c", "#fff8ea"),
+          ...(c.note
+            ? [
+                {
+                  type: "box",
+                  layout: "vertical",
+                  paddingAll: "12px",
+                  backgroundColor: "#f8f9fb",
+                  cornerRadius: "14px",
+                  contents: [{ type: "text", text: c.note, size: "xs", color: MUTED, wrap: true }],
+                },
+              ]
+            : []),
+          { type: "text", text: "ตั้งค่าได้ที่ Dashboard > ข้อมูลบริษัท", size: "xxs", color: FAINT, wrap: true },
+        ],
+      },
     ],
   };
   return flex("ติดต่อฝ่ายบุคคล (HR)", bubble(body));
