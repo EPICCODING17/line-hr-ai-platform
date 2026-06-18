@@ -6,7 +6,10 @@ import { themeInitScript } from "@/lib/theme";
 
 const prompt = Prompt({
   subsets: ["latin", "thai"],
-  weight: ["300", "400", "500", "600", "700"],
+  // Only the weights the UI actually uses (400 body · 500 medium · 600 heading ·
+  // 700 display). Weight 300 was never referenced and the Thai glyph files are
+  // heavy, so dropping it trims the largest blocking font payload.
+  weight: ["400", "500", "600", "700"],
   variable: "--font-prompt",
   display: "swap",
 });

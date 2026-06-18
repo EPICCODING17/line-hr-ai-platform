@@ -95,3 +95,5 @@ export const IconLock = (p: P) =>
 export const IconEyeOff = (p: P) =>
   I(p, <><path d="M10.7 5.1A10.7 10.7 0 0 1 12 5c6.5 0 10 7 10 7a18 18 0 0 1-2.2 3.2M6.6 6.6A18 18 0 0 0 2 12s3.5 7 10 7a10.7 10.7 0 0 0 5.4-1.4" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /><path d="m2 2 20 20" /></>);
 export const IconArrowRight = (p: P) => I(p, <><path d="M5 12h14M12 5l7 7-7 7" /></>);
+// Small upward trend arrow for positive stat deltas (inherits currentColor).
+export const IconTrendUp = (p: P) => I(p, <><path d="M12 19V6M6 12l6-6 6 6" /></>);

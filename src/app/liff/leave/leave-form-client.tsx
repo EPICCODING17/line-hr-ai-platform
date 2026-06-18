@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { LiffLoading, LeaveLoadingIcon, OtLoadingIcon, DocLoadingIcon, CheckinLoadingIcon } from "../liff-loading";
+import { LiffHero } from "../liff-hero";
+import { initLiff, resolveLiffUserId } from "../liff-client";
 import type { LeavePrefill } from "@/lib/ai/prefill";
 import { resolveEmployee, submitLeaveRequest, type LeaveBalance } from "./actions";
 
@@ -24,15 +26,6 @@ type Props = {
   /** AI-extracted values to pre-fill the form (from a natural-language message). */
   prefill?: LeavePrefill | null;
 };
-
-const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-declare global {
-  interface Window {
-    liff?: any;
-  }
-}
 
 type Phase =
   | { k: "init" }
@@ -58,17 +51,6 @@ function previewWorkingDays(start: string, end: string) {
     d.setDate(d.getDate() + 1);
   }
   return n;
-}
-
-function loadScript(src: string) {
-  return new Promise<void>((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("โหลด LINE SDK ไม่สำเร็จ"));
-    document.head.appendChild(s);
-  });
 }
 
 export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes, transitTarget, prefill }: Props) {
@@ -107,28 +89,11 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes, transit
       try {
         // Endpoint transit: just init LIFF so it redirects to the real form.
         if (transitTarget) {
-          if (liffId) { await loadScript(LIFF_SDK); await window.liff.init({ liffId }); }
+          if (liffId) await initLiff(liffId);
           return;
         }
-        let uid = devUserId;
-        if (!uid) {
-          if (!liffId) {
-            if (alive) setPhase({ k: "error", msg: "ยังไม่ได้ตั้งค่า LIFF ID ของบริษัท กรุณาติดต่อ HR" });
-            return;
-          }
-          await loadScript(LIFF_SDK);
-          await window.liff.init({ liffId });
-          if (!window.liff.isLoggedIn()) {
-            window.liff.login();
-            return; // browser will redirect
-          }
-          const profile = await window.liff.getProfile();
-          uid = profile.userId as string;
-        }
-        if (!uid) {
-          if (alive) setPhase({ k: "error", msg: "ไม่พบบัญชี LINE" });
-          return;
-        }
+        const uid = await resolveLiffUserId(liffId, devUserId);
+        if (!uid) return; // browser will redirect
         const res = await resolveEmployee(acctId, uid);
         if (!alive) return;
         if (!res.ok) {
@@ -194,19 +159,12 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes, transit
 
   return (
     <main className="liff-shell">
-      <header className="liff-head">
-        {employee && (
-          <div className="liff-greet">
-            <span className="liff-avatar" aria-hidden>{initials(employee.firstName, employee.lastName)}</span>
-            <span className="liff-greet-text">
-              <span className="liff-hi">สวัสดีคุณ{employee.firstName} 👋</span>
-              <span className="liff-code">{employee.code}</span>
-            </span>
-          </div>
-        )}
-        <h1 className="liff-title">ขอลางาน</h1>
-        <p className="liff-sub">กรอกรายละเอียดการลา ระบบจะส่งให้หัวหน้าอนุมัติให้โดยอัตโนมัติ</p>
-      </header>
+      <LiffHero
+        flow="leave"
+        employee={employee}
+        title="ขอลางาน"
+        sub="เลือกประเภทและวันที่ ระบบจะส่งให้หัวหน้าอนุมัติให้อัตโนมัติ"
+      />
 
       <div className="liff-form">
         {/* leave type */}
@@ -332,10 +290,6 @@ export function LeaveFormClient({ acctId, liffId, devUserId, leaveTypes, transit
 
 function fmt(n: number) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
-}
-
-function initials(first: string, last: string) {
-  return ((first?.[0] ?? "") + (last?.[0] ?? "")).trim() || "?";
 }
 
 /** A line icon per leave category — colored by the type's own color via --c. */

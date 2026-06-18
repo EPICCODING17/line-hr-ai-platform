@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { LiffLoading, DocLoadingIcon } from "../liff-loading";
+import { LiffHero } from "../liff-hero";
+import { resolveLiffUserId } from "../liff-client";
 import type { DocPrefill } from "@/lib/ai/prefill";
 import { resolveDocEmployee, submitDocRequest } from "./actions";
 
@@ -19,15 +21,6 @@ type Props = {
   docTypes: DocTypeOption[];
   prefill?: DocPrefill | null;
 };
-
-const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-declare global {
-  interface Window {
-    liff?: any;
-  }
-}
 
 type Phase =
   | { k: "init" }
@@ -48,17 +41,6 @@ const DOC_COLOR: Record<string, string> = {
 function thisMonthValue() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function loadScript(src: string) {
-  return new Promise<void>((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("โหลด LINE SDK ไม่สำเร็จ"));
-    document.head.appendChild(s);
-  });
 }
 
 export function DocFormClient({ acctId, liffId, devUserId, docTypes, prefill }: Props) {
@@ -86,25 +68,8 @@ export function DocFormClient({ acctId, liffId, devUserId, docTypes, prefill }: 
     let alive = true;
     (async () => {
       try {
-        let uid = devUserId;
-        if (!uid) {
-          if (!liffId) {
-            if (alive) setPhase({ k: "error", msg: "ยังไม่ได้ตั้งค่า LIFF ID ของบริษัท กรุณาติดต่อ HR" });
-            return;
-          }
-          await loadScript(LIFF_SDK);
-          await window.liff.init({ liffId });
-          if (!window.liff.isLoggedIn()) {
-            window.liff.login();
-            return;
-          }
-          const profile = await window.liff.getProfile();
-          uid = profile.userId as string;
-        }
-        if (!uid) {
-          if (alive) setPhase({ k: "error", msg: "ไม่พบบัญชี LINE" });
-          return;
-        }
+        const uid = await resolveLiffUserId(liffId, devUserId);
+        if (!uid) return;
         const res = await resolveDocEmployee(acctId, uid);
         if (!alive) return;
         if (!res.ok) {
@@ -160,19 +125,12 @@ export function DocFormClient({ acctId, liffId, devUserId, docTypes, prefill }: 
 
   return (
     <main className="liff-shell">
-      <header className="liff-head">
-        {employee && (
-          <div className="liff-greet">
-            <span className="liff-avatar" aria-hidden>{initials(employee.firstName, employee.lastName)}</span>
-            <span className="liff-greet-text">
-              <span className="liff-hi">สวัสดีคุณ{employee.firstName} 👋</span>
-              <span className="liff-code">{employee.code}</span>
-            </span>
-          </div>
-        )}
-        <h1 className="liff-title">ขอเอกสาร</h1>
-        <p className="liff-sub">เลือกประเภทเอกสารที่ต้องการ ระบบจะส่งให้ฝ่ายบุคคลจัดทำให้</p>
-      </header>
+      <LiffHero
+        flow="document"
+        employee={employee}
+        title="ขอเอกสาร"
+        sub="เลือกเอกสารที่ต้องการ แล้วส่งให้ฝ่ายบุคคลจัดทำต่อได้ทันที"
+      />
 
       <div className="liff-form">
         <section className="field">
@@ -245,10 +203,6 @@ export function DocFormClient({ acctId, liffId, devUserId, docTypes, prefill }: 
       </footer>
     </main>
   );
-}
-
-function initials(first: string, last: string) {
-  return ((first?.[0] ?? "") + (last?.[0] ?? "")).trim() || "?";
 }
 
 function NeedLink() {

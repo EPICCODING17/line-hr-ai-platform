@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useTheme } from "@/components/theme-provider";
-import { CommandPalette } from "@/components/command-palette";
 import {
   THEMES, DENSITIES, THEME_LABEL, DENSITY_LABEL, type Theme, type Density,
 } from "@/lib/theme";
@@ -14,6 +14,11 @@ import {
   IconPlus, IconBell, IconSearch, IconMenu, IconSun, IconMoon, IconMoonStars,
   IconPalette, IconSliders, IconUser, IconLogout,
 } from "@/components/icons";
+
+const CommandPalette = dynamic(
+  () => import("@/components/command-palette").then((m) => m.CommandPalette),
+  { ssr: false, loading: () => null },
+);
 
 type Item = { label: string; Icon: (p: { className?: string }) => React.ReactNode; href?: string; count?: string; soon?: boolean };
 type Cat = { key: string; label: string; Icon: (p: { className?: string }) => React.ReactNode; route?: string };
@@ -82,6 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [cmdk, setCmdk] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
     const c = catFromPath(pathname);
@@ -89,7 +95,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSbOpen(c !== "overview");
     setDrawer(false);
     setProfileOpen(false);
+    setPendingHref(null);
   }, [pathname]);
+
+  // Warm the routes HR is likely to open next. This trades a tiny idle fetch for
+  // faster perceived navigation after the shell has become interactive.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const hrefs = new Set<string>();
+      RAIL.forEach((r) => { if (r.route) hrefs.add(r.route); });
+      Object.values(SIDEBAR).forEach((group) => {
+        group.items.forEach((item) => { if (item.href) hrefs.add(item.href); });
+      });
+      hrefs.forEach((href) => router.prefetch(href));
+    }, 350);
+    return () => window.clearTimeout(id);
+  }, [router]);
 
   // Ctrl/⌘ + K toggles the command palette
   useEffect(() => {
@@ -105,8 +126,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const title = TITLES[pathname] ?? "ภาพรวม";
   const sidebar = SIDEBAR[cat];
+  const isNavigating = !!pendingHref && pendingHref !== pathname;
+
+  function startNavigation(href: string, nextCat?: string) {
+    if (nextCat) setCat(nextCat);
+    if (href !== pathname) setPendingHref(href);
+    setDrawer(false);
+    setProfileOpen(false);
+  }
 
   async function logout() {
+    const { createClient } = await import("@/lib/supabase/client");
     await createClient().auth.signOut();
     router.push("/login");
     router.refresh();
@@ -114,7 +144,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   function onRail(c: Cat) {
     setCat(c.key);
-    if (c.route) router.push(c.route);
+    if (c.route) {
+      setPendingHref(c.route);
+      router.push(c.route);
+    }
     else setSbOpen(true);
     setDrawer(false);
   }
@@ -122,22 +155,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const railNodes = useMemo(
     () =>
       RAIL.map((c) => {
-        const active = cat === c.key;
-        return (
+        const pending = !!c.route && pendingHref === c.route && pathname !== c.route;
+        const active = cat === c.key || pending;
+        const cls = `rail-btn${active ? " active" : ""}${pending ? " pending" : ""}`;
+        const inner = (
+          <>
+            <c.Icon className="" />
+            <span>{c.label}</span>
+          </>
+        );
+        return c.route ? (
+          <Link
+            key={c.key}
+            href={c.route}
+            prefetch
+            className={cls}
+            onClick={() => startNavigation(c.route!, c.key)}
+            title={c.label}
+            aria-current={active ? "page" : undefined}
+          >
+            {inner}
+          </Link>
+        ) : (
           <button
             key={c.key}
-            className={`rail-btn${active ? " active" : ""}`}
+            className={cls}
             onClick={() => onRail(c)}
             title={c.label}
             aria-current={active ? "page" : undefined}
           >
-            <c.Icon className="" />
-            <span>{c.label}</span>
+            {inner}
           </button>
         );
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cat],
+    [cat, pathname, pendingHref],
   );
 
   return (
@@ -177,8 +229,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="sb-group">
               <div className="sb-glabel">{sidebar.title}</div>
               {sidebar.items.map((it) => {
-                const active = it.href ? pathname === it.href : false;
-                const cls = `sb-item${active ? " active" : ""}`;
+                const pending = it.href ? pendingHref === it.href && pathname !== it.href : false;
+                const active = it.href ? pathname === it.href || pending : false;
+                const cls = `sb-item${active ? " active" : ""}${pending ? " pending" : ""}`;
                 const inner = (
                   <>
                     <it.Icon className="" />
@@ -188,7 +241,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </>
                 );
                 return it.href ? (
-                  <button key={it.label} className={cls} onClick={() => router.push(it.href!)}>{inner}</button>
+                  <Link
+                    key={it.label}
+                    href={it.href}
+                    prefetch
+                    className={cls}
+                    onClick={() => startNavigation(it.href!)}
+                  >
+                    {inner}
+                  </Link>
                 ) : (
                   <button key={it.label} className={cls} style={{ opacity: 0.6, cursor: "default" }} aria-disabled>{inner}</button>
                 );
@@ -200,7 +261,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* MAIN */}
       <div className="main">
-        <header className="navbar">
+        <header className={`navbar${isNavigating ? " navigating" : ""}`} aria-busy={isNavigating}>
           <button className="btn-icon mob-only" onClick={() => setDrawer(true)} aria-label="เปิดเมนู">
             <IconMenu className="" />
           </button>
@@ -283,7 +344,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="content">
+        <main className={`content${isNavigating ? " navigating" : ""}`}>
           <div className="page">{children}</div>
         </main>
       </div>
@@ -297,10 +358,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* mobile bottom nav */}
       <nav className="mobnav" aria-label="เมนูมือถือ">
         {RAIL.map((c) => (
-          <button key={c.key} className={cat === c.key ? "active" : ""} onClick={() => onRail(c)}>
-            <span className="mn-ic"><c.Icon className="" /></span>
-            <span>{c.label}</span>
-          </button>
+          c.route ? (
+            <Link
+              key={c.key}
+              href={c.route}
+              prefetch
+              className={cat === c.key || pendingHref === c.route ? "active" : ""}
+              onClick={() => startNavigation(c.route!, c.key)}
+            >
+              <span className="mn-ic"><c.Icon className="" /></span>
+              <span>{c.label}</span>
+            </Link>
+          ) : (
+            <button key={c.key} className={cat === c.key ? "active" : ""} onClick={() => onRail(c)}>
+              <span className="mn-ic"><c.Icon className="" /></span>
+              <span>{c.label}</span>
+            </button>
+          )
         ))}
       </nav>
     </div>

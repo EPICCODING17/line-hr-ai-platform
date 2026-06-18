@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -15,9 +16,14 @@ export type SessionContext = {
  * Auth comes from the session (RLS-safe); the users-row lookup uses the
  * service role so it works whether or not the JWT auth hook is enabled.
  */
-export async function getContext(): Promise<SessionContext | null> {
+export const getSessionUser = cache(async () => {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  return user;
+});
+
+export async function getContext(): Promise<SessionContext | null> {
+  const user = await getSessionUser();
   if (!user) return null;
 
   const admin = createAdminClient();

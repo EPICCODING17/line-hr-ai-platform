@@ -1,12 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { StatusBadge, type Status } from "@/components/ui/status-badge";
-import { IconUsers, IconLeave, IconClock, IconCheckin } from "@/components/icons";
+import { IconUsers, IconLeave, IconClock, IconCheckin, IconTrendUp } from "@/components/icons";
 
 const STATS = [
-  { label: "พนักงานทั้งหมด", value: "48", trend: "+2 เดือนนี้", color: "var(--brand-blue,#3c8cf3)", Icon: IconUsers },
-  { label: "ลารออนุมัติ", value: "5", trend: "ต้องดำเนินการ", color: "#e8920c", Icon: IconLeave },
-  { label: "OT รออนุมัติ", value: "3", trend: "ต้องดำเนินการ", color: "#745af2", Icon: IconClock },
-  { label: "มาสายวันนี้", value: "2", trend: "จาก 46 คน", color: "#ef5350", Icon: IconCheckin },
+  { label: "พนักงานทั้งหมด", value: "48", trend: "+2 เดือนนี้", color: "#3c8cf3", Icon: IconUsers, up: true },
+  { label: "ลารออนุมัติ", value: "5", trend: "ต้องดำเนินการ", color: "#e8920c", Icon: IconLeave, up: false },
+  { label: "OT รออนุมัติ", value: "3", trend: "ต้องดำเนินการ", color: "#745af2", Icon: IconClock, up: false },
+  { label: "มาสายวันนี้", value: "2", trend: "จาก 46 คน", color: "#ef5350", Icon: IconCheckin, up: false },
 ];
 
 const RECENT: { name: string; type: string; status: Status; when: string }[] = [
@@ -19,6 +19,12 @@ const RECENT: { name: string; type: string; status: Status; when: string }[] = [
 
 const TODAY = ["อริสา พงษ์", "เมธี ตั้งใจ", "สุดา แก้วใส"];
 
+const PULSE = [
+  { label: "LINE webhook", value: "ไว", pct: 96, color: "#05be8a", note: "พร้อมรับคำขอ" },
+  { label: "AI routing", value: "fast-path", pct: 82, color: "#745af2", note: "ข้าม AI เมื่อเป็นคำสั่งสั้น" },
+  { label: "Approval", value: "สด", pct: 74, color: "#3c8cf3", note: "หัวหน้าเห็นใน LINE" },
+];
+
 export default function DashboardOverview() {
   return (
     <>
@@ -29,13 +35,36 @@ export default function DashboardOverview() {
         </div>
       </div>
 
+      <section className="dash-pulse" aria-label="สถานะระบบวันนี้">
+        <div className="pulse-copy">
+          <span className="pulse-kicker">Live HR pulse</span>
+          <h2>LINE, AI และคำขอพร้อมทำงาน</h2>
+          <p>สถานะหลักของระบบวันนี้ถูกสรุปให้ HR เห็นทันที โดยไม่ต้องเปิดหลายหน้า</p>
+        </div>
+        <div className="pulse-mascot" aria-hidden>
+          <img src="/brand/hr-mascot-sm.webp" width="104" height="104" alt="" decoding="async" />
+        </div>
+        <div className="pulse-bars">
+          {PULSE.map((p) => (
+            <div key={p.label} className="pulse-row" style={{ "--pulse-c": p.color, "--pulse-p": `${p.pct}%` } as React.CSSProperties}>
+              <div className="pulse-row-top">
+                <span>{p.label}</span>
+                <b>{p.value}</b>
+              </div>
+              <span className="pulse-track"><span /></span>
+              <small>{p.note}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="stat-grid" style={{ marginBottom: "var(--gap)" }}>
         {STATS.map((s) => (
-          <div key={s.label} className="stat" style={{ "--stat-c": s.color } as React.CSSProperties}>
-            <div className="ic"><s.Icon className="" /></div>
+          <div key={s.label} className="stat-soft" style={{ "--stat-c": s.color } as React.CSSProperties}>
+            <div className="top"><div className="ic"><s.Icon className="" /></div></div>
             <div className="lbl">{s.label}</div>
             <div className="val tabular">{s.value}</div>
-            <div className="trend">{s.trend}</div>
+            <div className={`trend${s.up ? "" : " muted"}`}>{s.up && <IconTrendUp />}{s.trend}</div>
           </div>
         ))}
       </div>

@@ -5,6 +5,13 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
 /** Refreshes the Supabase auth session on every request (keeps cookies fresh). */
 export async function middleware(request: NextRequest) {
+  if (
+    request.nextUrl.searchParams.has("_rsc") ||
+    request.headers.get("next-router-prefetch") === "1"
+  ) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

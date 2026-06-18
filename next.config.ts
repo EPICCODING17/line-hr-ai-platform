@@ -6,6 +6,7 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  devIndicators: false,
   images: {
     remotePatterns: supabaseHost
       ? [{ protocol: "https", hostname: supabaseHost }]

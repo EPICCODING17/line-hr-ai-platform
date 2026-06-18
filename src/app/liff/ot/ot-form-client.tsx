@@ -5,6 +5,8 @@ import {
   OT_RATE_TYPES, OT_RATE_LABEL, autoRateType, otHours, parseHM, fmtHours, type OtRateType,
 } from "@/lib/ot";
 import { LiffLoading, OtLoadingIcon } from "../liff-loading";
+import { LiffHero } from "../liff-hero";
+import { resolveLiffUserId } from "../liff-client";
 import type { OtPrefill } from "@/lib/ai/prefill";
 import { resolveOtEmployee, submitOtRequest } from "./actions";
 
@@ -24,15 +26,6 @@ type Props = {
   prefill?: OtPrefill | null;
 };
 
-const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-declare global {
-  interface Window {
-    liff?: any;
-  }
-}
-
 type Phase =
   | { k: "init" }
   | { k: "needlink" }
@@ -50,17 +43,6 @@ const RATE_COLOR: Record<OtRateType, string> = {
 function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function loadScript(src: string) {
-  return new Promise<void>((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("โหลด LINE SDK ไม่สำเร็จ"));
-    document.head.appendChild(s);
-  });
 }
 
 export function OtFormClient({ acctId, liffId, devUserId, policy, holidays, prefill }: Props) {
@@ -104,25 +86,8 @@ export function OtFormClient({ acctId, liffId, devUserId, policy, holidays, pref
     let alive = true;
     (async () => {
       try {
-        let uid = devUserId;
-        if (!uid) {
-          if (!liffId) {
-            if (alive) setPhase({ k: "error", msg: "ยังไม่ได้ตั้งค่า LIFF ID ของบริษัท กรุณาติดต่อ HR" });
-            return;
-          }
-          await loadScript(LIFF_SDK);
-          await window.liff.init({ liffId });
-          if (!window.liff.isLoggedIn()) {
-            window.liff.login();
-            return;
-          }
-          const profile = await window.liff.getProfile();
-          uid = profile.userId as string;
-        }
-        if (!uid) {
-          if (alive) setPhase({ k: "error", msg: "ไม่พบบัญชี LINE" });
-          return;
-        }
+        const uid = await resolveLiffUserId(liffId, devUserId);
+        if (!uid) return;
         const res = await resolveOtEmployee(acctId, uid);
         if (!alive) return;
         if (!res.ok) {
@@ -181,19 +146,12 @@ export function OtFormClient({ acctId, liffId, devUserId, policy, holidays, pref
 
   return (
     <main className="liff-shell">
-      <header className="liff-head">
-        {employee && (
-          <div className="liff-greet">
-            <span className="liff-avatar" aria-hidden>{initials(employee.firstName, employee.lastName)}</span>
-            <span className="liff-greet-text">
-              <span className="liff-hi">สวัสดีคุณ{employee.firstName} 👋</span>
-              <span className="liff-code">{employee.code}</span>
-            </span>
-          </div>
-        )}
-        <h1 className="liff-title">ขอทำ OT</h1>
-        <p className="liff-sub">กรอกรายละเอียดการทำงานล่วงเวลา ระบบจะส่งให้หัวหน้าอนุมัติให้โดยอัตโนมัติ</p>
-      </header>
+      <LiffHero
+        flow="ot"
+        employee={employee}
+        title="ขอทำ OT"
+        sub="เลือกวันและเวลา ระบบช่วยคำนวณชั่วโมงกับอัตราที่ควรใช้ให้"
+      />
 
       <div className="liff-form">
         {/* date */}
@@ -321,10 +279,6 @@ export function OtFormClient({ acctId, liffId, devUserId, policy, holidays, pref
       </footer>
     </main>
   );
-}
-
-function initials(first: string, last: string) {
-  return ((first?.[0] ?? "") + (last?.[0] ?? "")).trim() || "?";
 }
 
 function Loading() {

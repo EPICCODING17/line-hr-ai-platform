@@ -18,7 +18,10 @@ export function LiffLoading({
         <div className="liff-load-stage">
           <span className="liff-load-ring" aria-hidden />
           <span className="liff-load-ring r2" aria-hidden />
-          <span className="liff-load-mark" aria-hidden>{icon ?? <SparkIcon />}</span>
+          <span className="liff-load-mark" aria-hidden>
+            <img className="liff-load-mascot" src="/brand/hr-mascot-sm.webp" width="68" height="68" alt="" decoding="async" />
+            <span className="liff-load-badge">{icon ?? <SparkIcon />}</span>
+          </span>
         </div>
         <div className="liff-load-text">
           <span className="liff-load-title">{title}</span>

@@ -103,6 +103,35 @@ const FORM_META = {
   document: { color: "#745af2", emoji: "📄", title: "ขอเอกสาร", label: "เปิดฟอร์มขอเอกสาร", link: docLink },
 } as const;
 
+type Cmd = "leave" | "ot" | "checkin" | "document" | "status";
+
+// Exact single-command messages carry no slots to extract, so the 3–9s AI
+// round-trip buys nothing. Match these (whitespace-stripped, case-folded) and
+// open the flow instantly. Any message with extra words still falls through to
+// AI, so relative dates/types ("พรุ่งนี้ขอลาป่วย") are still captured.
+const BARE_COMMANDS: Record<string, Cmd> = {
+  "ลา": "leave", "ลางาน": "leave", "ขอลา": "leave", "leave": "leave",
+  "โอที": "ot", "ขอโอที": "ot", "ขอot": "ot", "ot": "ot", "o.t": "ot", "o.t.": "ot",
+  "ลงเวลา": "checkin", "เช็คอิน": "checkin", "เช็คเอาท์": "checkin", "checkin": "checkin", "checkout": "checkin",
+  "เอกสาร": "document", "ขอเอกสาร": "document", "document": "document",
+  "สถานะ": "status", "สถานะคำขอ": "status", "status": "status",
+};
+
+function bareCommand(text: string): Cmd | null {
+  return BARE_COMMANDS[text.toLowerCase().replace(/\s+/g, "")] ?? null;
+}
+
+function openFlow(
+  admin: ReturnType<typeof createAdminClient>, ctx: Ctx, cf: CfCtx,
+  emp: { id: string; first_name: string }, cmd: Cmd,
+): Promise<LineMessage[]> {
+  if (cmd === "ot") return startChat(cf, "ot", {});
+  if (cmd === "leave") return startChat(cf, "leave", {});
+  if (cmd === "checkin") return actionReply(admin, ctx, emp, "checkin");
+  if (cmd === "document") return actionReply(admin, ctx, emp, "document");
+  return actionReply(admin, ctx, emp, "status");
+}
+
 function cfCtx(admin: ReturnType<typeof createAdminClient>, ctx: Ctx, emp: { id: string }, userId: string): CfCtx {
   return {
     admin, tenantId: ctx.tenantId, acctId: ctx.acctId, lineUserId: userId, employeeId: emp.id,
@@ -213,6 +242,12 @@ async function handleEvent(admin: ReturnType<typeof createAdminClient>, ctx: Ctx
       // if an in-chat form is waiting for a note, this text IS the note
       const note = await maybeCollectNote(cf, text);
       if (note) return reply(note);
+
+      // Fast-path: an exact one-word command has no slots to extract, so skip
+      // the 3–9s AI round-trip and open the flow instantly. Sentences with extra
+      // words fall through to AI below (which captures relative dates/types).
+      const cmd = bareCommand(text);
+      if (cmd) return reply(await openFlow(admin, ctx, cf, emp, cmd));
 
       // AI FIRST when configured — it does intent + slot extraction (incl. relative
       // dates like "พรุ่งนี้"). Keyword routing is the fallback only when AI is off,

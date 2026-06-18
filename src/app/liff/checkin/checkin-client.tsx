@@ -2,18 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { LiffLoading, CheckinLoadingIcon } from "../liff-loading";
+import { LiffHero } from "../liff-hero";
+import { resolveLiffUserId } from "../liff-client";
 import { resolveAttendance, checkIn, checkOut, type TodayRecord, type AttResolveResult } from "./actions";
 
 type Props = { acctId: string; liffId: string | null; devUserId: string | null };
-
-const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
-declare global {
-  interface Window {
-    liff?: any;
-  }
-}
 
 type Policy = { workStart: string; workEnd: string; requireGps: boolean; allowWfh: boolean };
 
@@ -23,17 +16,6 @@ type Phase =
   | { k: "error"; msg: string }
   | { k: "ready" }
   | { k: "done"; kind: "in" | "out"; timeText: string; late?: boolean; lateMinutes?: number };
-
-function loadScript(src: string) {
-  return new Promise<void>((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("โหลด LINE SDK ไม่สำเร็จ"));
-    document.head.appendChild(s);
-  });
-}
 
 function getPosition(): Promise<{ lat: number; lng: number } | null> {
   return new Promise((res) => {
@@ -77,25 +59,8 @@ export function CheckinClient({ acctId, liffId, devUserId }: Props) {
     let alive = true;
     (async () => {
       try {
-        let uid = devUserId;
-        if (!uid) {
-          if (!liffId) {
-            if (alive) setPhase({ k: "error", msg: "ยังไม่ได้ตั้งค่า LIFF ID ของบริษัท กรุณาติดต่อ HR" });
-            return;
-          }
-          await loadScript(LIFF_SDK);
-          await window.liff.init({ liffId });
-          if (!window.liff.isLoggedIn()) {
-            window.liff.login();
-            return;
-          }
-          const profile = await window.liff.getProfile();
-          uid = profile.userId as string;
-        }
-        if (!uid) {
-          if (alive) setPhase({ k: "error", msg: "ไม่พบบัญชี LINE" });
-          return;
-        }
+        const uid = await resolveLiffUserId(liffId, devUserId);
+        if (!uid) return;
         const res: AttResolveResult = await resolveAttendance(acctId, uid);
         if (!alive) return;
         if (!res.ok) {
@@ -146,45 +111,40 @@ export function CheckinClient({ acctId, liffId, devUserId }: Props) {
   const today2 = today;
   return (
     <main className="liff-shell">
-      <header className="liff-head">
-        {employee && (
-          <div className="liff-greet">
-            <span className="liff-avatar" aria-hidden>{initials(employee.firstName, employee.lastName)}</span>
-            <span className="liff-greet-text">
-              <span className="liff-hi">สวัสดีคุณ{employee.firstName} 👋</span>
-              <span className="liff-code">{employee.code}</span>
-            </span>
+      <LiffHero
+        flow="checkin"
+        employee={employee}
+        title="ลงเวลาทำงาน"
+        sub={DATE_FMT.format(new Date())}
+      />
+
+      <div className="checkin-body">
+        <div className="clock-hero" aria-hidden>
+          <span className="clock-time tabular">{clock}</span>
+          <span className="clock-tz">เวลาประเทศไทย</span>
+        </div>
+
+        <div className="att-status">
+          <div className={`att-row${checkedIn ? " is-on" : ""}`}>
+            <span className="att-dot" data-on={checkedIn} aria-hidden />
+            <span className="att-label">เข้างาน</span>
+            <span className="att-val tabular">{today2?.checkInTime ? timeBkk(today2.checkInTime) : "—"}</span>
+            {today2?.isLate && <span className="att-late">สาย {today2.lateMinutes} นาที</span>}
+          </div>
+          <div className={`att-row${checkedOut ? " is-on" : ""}`}>
+            <span className="att-dot" data-on={checkedOut} aria-hidden />
+            <span className="att-label">ออกงาน</span>
+            <span className="att-val tabular">{today2?.checkOutTime ? timeBkk(today2.checkOutTime) : "—"}</span>
+          </div>
+        </div>
+
+        {!checkedIn && policy?.allowWfh && (
+          <div className="seg" role="radiogroup" aria-label="รูปแบบการทำงาน" style={{ alignSelf: "center" }}>
+            <button type="button" role="radio" aria-checked={workMode === "office"} className={`seg-btn${workMode === "office" ? " is-active" : ""}`} onClick={() => setWorkMode("office")}>เข้าออฟฟิศ</button>
+            <button type="button" role="radio" aria-checked={workMode === "wfh"} className={`seg-btn${workMode === "wfh" ? " is-active" : ""}`} onClick={() => setWorkMode("wfh")}>ทำงานที่บ้าน</button>
           </div>
         )}
-        <h1 className="liff-title">ลงเวลาทำงาน</h1>
-        <p className="liff-sub">{DATE_FMT.format(new Date())}</p>
-      </header>
-
-      <div className="clock-hero" aria-hidden>
-        <span className="clock-time tabular">{clock}</span>
-        <span className="clock-tz">เวลาประเทศไทย</span>
       </div>
-
-      <div className="att-status">
-        <div className={`att-row${checkedIn ? " is-on" : ""}`}>
-          <span className="att-dot" data-on={checkedIn} aria-hidden />
-          <span className="att-label">เข้างาน</span>
-          <span className="att-val tabular">{today2?.checkInTime ? timeBkk(today2.checkInTime) : "—"}</span>
-          {today2?.isLate && <span className="att-late">สาย {today2.lateMinutes} นาที</span>}
-        </div>
-        <div className={`att-row${checkedOut ? " is-on" : ""}`}>
-          <span className="att-dot" data-on={checkedOut} aria-hidden />
-          <span className="att-label">ออกงาน</span>
-          <span className="att-val tabular">{today2?.checkOutTime ? timeBkk(today2.checkOutTime) : "—"}</span>
-        </div>
-      </div>
-
-      {!checkedIn && policy?.allowWfh && (
-        <div className="seg" role="radiogroup" aria-label="รูปแบบการทำงาน" style={{ alignSelf: "center" }}>
-          <button type="button" role="radio" aria-checked={workMode === "office"} className={`seg-btn${workMode === "office" ? " is-active" : ""}`} onClick={() => setWorkMode("office")}>เข้าออฟฟิศ</button>
-          <button type="button" role="radio" aria-checked={workMode === "wfh"} className={`seg-btn${workMode === "wfh" ? " is-active" : ""}`} onClick={() => setWorkMode("wfh")}>ทำงานที่บ้าน</button>
-        </div>
-      )}
 
       <footer className="liff-foot">
         {actErr && <p className="form-error" role="alert">{actErr}</p>}
@@ -205,10 +165,6 @@ export function CheckinClient({ acctId, liffId, devUserId }: Props) {
 
 function timeBkk(iso: string) {
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Bangkok" }).format(new Date(iso));
-}
-
-function initials(first: string, last: string) {
-  return ((first?.[0] ?? "") + (last?.[0] ?? "")).trim() || "?";
 }
 
 function NeedLink() {

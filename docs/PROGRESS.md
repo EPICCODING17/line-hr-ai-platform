@@ -63,6 +63,32 @@
 
 ## บันทึกรายวัน
 
+### 2026-06-18 — LIFF delight + dashboard/perf polish ✅
+- **Mascot asset เฉพาะระบบ**: เพิ่ม `public/brand/hr-mascot.{png,webp}` + `hr-mascot-sm.webp` (10KB) เป็นผู้ช่วย HR โทนขาว/น้ำเงิน/ม่วง/เขียว ตามสีแบรนด์ ใช้เป็น static asset cache ได้
+- **LIFF redesign รอบ playful-premium**: เพิ่ม `LiffHero` กลาง (`src/app/liff/liff-hero.tsx`) แล้วใช้กับ 4 flow ลา/OT/เอกสาร/ลงเวลา — hero card + mascot + live pill + flow accent โดยไม่เปลี่ยนสีหลัก
+- **LIFF motion/delight**: loading splash ใช้ mascot + badge icon, hero float/sparkle, hover/active feedback บน chips/rows/buttons, clock scan เบา ๆ และยังเคารพ `prefers-reduced-motion`
+- **LIFF performance**: รวม LINE SDK loader เป็น `src/app/liff/liff-client.ts` โหลด async/defer + init cache ตาม LIFF ID ลดโค้ดซ้ำใน client forms
+- **Dashboard polish/perceived speed**: เพิ่ม `Live HR pulse` overview strip + mascot/progress bars, prefetch route หลักหลัง shell พร้อม, lazy import `CommandPalette`, lazy import Supabase browser client เฉพาะตอน logout, เพิ่ม containment/content-visibility สำหรับ overview sections
+- **verify**: `npm.cmd run build` ผ่าน · screenshot LIFF 4 flow ที่ 480px ไม่มี horizontal overflow · dashboard desktop/mobile ไม่มี overflow
+
+### 2026-06-17 — รอบ "สวยขึ้น + เร็วขึ้น" (impeccable · polish + perf)
+**เร็วขึ้น (Phase A):**
+- **ฟอนต์ Prompt**: ตัดน้ำหนัก `300` ที่ไม่เคยถูกใช้ (grep ทั้ง src ไม่เจอ) → เหลือ 400/500/600/700 · ไฟล์ glyph ไทยหนัก การตัด 1 น้ำหนัก×2 subset ลด blocking font payload (`layout.tsx`)
+- **บอตเร็วขึ้น — fast-path คำสั่งเดี่ยว** (`api/line/webhook/[id]/route.ts`): พิมพ์คำสั่งเดี่ยวเป๊ะ ("ลา"/"โอที"/"ลงเวลา"/"เอกสาร"/"สถานะ" + alias) → `bareCommand()` เปิดฟอร์มทันที **ข้าม AI 3–9 วิ**. ประโยคยาว ("พรุ่งนี้ขอลาป่วย") ยังวิ่งเข้า AI เพื่อดึง slot เหมือนเดิม — ได้เร็วโดยไม่เสียความฉลาด + ประหยัด API call. helper `BARE_COMMANDS`/`openFlow` (DRY กับ keyword fallback เดิม)
+- **prompt caching — ตั้งใจไม่ใส่**: system prompt ~1.2k token แต่ Haiku ต้อง ≥2048 token ถึง cache ได้ → ใส่แล้วไม่ทำงานบน Haiku (ค่าเริ่ม). fast-path ให้ผลเร็วกว่ามาก. ถ้าสลับไป Sonnet/Opus ค่อยเปิด cache_control
+**สวยขึ้น (Phase B — Dashboard overview):**
+- **Stat cards → สไตล์ "B นุ่มคุมโทน"** (Pong เลือกจากเทียบ 3 แบบ A เดิม/B/C): การ์ดพื้น `--surface` neutral + ไอคอน tile สีอ่อน (`color-mix 15%`) + ตัวเลขสีหมึก + ลูกศรเทรนด์เฉพาะตัวบวก. เลิกบล็อกสีเต็มใบ (เข้าข่าย hero-metric template / ขัด Restrained). ดิมจาก elevation ตอน hover ไม่ใช่ saturation
+- CSS: ลบ `.stat` แบบ saturated เดิมทิ้ง (dead code) เพิ่ม `.stat-soft`(+`.accent` variant สำรอง) · เพิ่มไอคอน `IconTrendUp`
+- **verify**: tsc สะอาด · screenshot ผ่าน preview route ชั่วคราว (ไม่ต้อง auth) เรนเดอร์เลย์เอาต์เดียวกับ dashboard จริง → ยืนยัน B สวยในบริบทเต็ม แล้วลบ preview ทิ้ง
+- **ค้าง**: Dashboard overview ยังเป็น static demo data (STATS/RECENT/TODAY hardcode) — ยังไม่ wire DB จริง
+
+**สวยขึ้น (Phase B — LIFF forms):**
+- **ประเมินทั้งชุด 4 ฟอร์ม** (ลา/OT/ลงเวลา/เอกสาร) ด้วย screenshot จริงบน mobile — ถ่ายผ่าน `?u=<lineUserId>` (devUserId bypass LIFF) ของวราภรณ์ EMP-2026-0002. **สรุป: คราฟต์ระดับสูงอยู่แล้ว** (ผ่าน impeccable delight) — chip/rate tile, summary sticky, clock hero, success confetti, reduced-motion ครบ → **ไม่ churn ของดี**
+- **แก้จุดจริง 1 จุด — หน้าลงเวลา vertical balance**: เนื้อหา (นาฬิกา/สถานะ/toggle) สั้น เกาะกลุ่มบน เหลือช่องว่างเหนือปุ่ม sticky → wrap เป็น `.checkin-body{flex:1;justify-content:center}` จัดกึ่งกลางช่องว่าง (มิเรอร์ `.liff-form{flex:1}` ของฟอร์มลา/OT). `liff.css` + `checkin-client.tsx`
+- **verify**: tsc สะอาด · screenshot ลงเวลา ก่อน/หลัง ยืนยันสมดุลขึ้น
+- **เทคนิคถ่าย LIFF (เก็บไว้ใช้ต่อ)**: `localhost:3000/liff/<form>?acct=<id>&u=<lineUserId>` bypass LIFF ได้ · headless Chrome มี **viewport floor ~460px** → ถ่ายที่ window 480 (= max-width ของ `.liff-shell`) เห็นเต็มไม่โดนตัด; ถ้าตั้งแคบกว่านั้น layout 460 ถูก capture ลง canvas แคบ → ขวาโดนตัด
+- **ค้าง/optional**: ถ้าอยากดันต่อ (bolder delight / empty-balance state สวยกว่านี้) ยังทำได้ แต่ปัจจุบันถือว่านิ่งสวย · balance ของ demo เป็น 0 ทุกประเภท (ไม่มี seed) ทำให้ขึ้น "เกินสิทธิ์" — data ไม่ใช่ดีไซน์
+
 ### 2026-06-13 — UX แชต: "AI กำลังตอบ" + กรอกฟอร์มในแชต ✅
 - **Loading indicator**: `startLoading()` (`line/client.ts`) เรียก `chat/loading/start` ของ LINE → โชว์ "…" ระหว่าง classify (เฉพาะ path AI, 20s) → ผู้ใช้รู้ว่ากำลังตอบ
 - **In-chat quick form** (`src/lib/line/chatflow.ts`): เลือกวัน/เวลาด้วย **LINE datetimepicker** + หมายเหตุ + กดส่ง **โดยไม่ต้องเปิด LIFF** — state เก็บใน `ai_conversations` (multi-turn), submit reuse `submitOtRequest`/`submitLeaveRequest`
