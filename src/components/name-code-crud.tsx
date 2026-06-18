@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DataTable, type Column, type TableAction } from "@/components/data-table";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,14 @@ const actions: TableAction[] = [
 
 export function NameCodeCrud({ title, singular, rows, onCreate, onUpdate, onRemove }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [modal, setModal] = useState<{ initial?: NCRow } | null>(null);
   const [confirm, setConfirm] = useState<{ ids: string[]; clear: () => void } | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") setModal({});
+  }, [searchParams]);
 
   const columns: Column<NCRow>[] = [
     { key: "name", header: singular, render: (r) => <span style={{ fontWeight: 500 }}>{r.name}</span> },

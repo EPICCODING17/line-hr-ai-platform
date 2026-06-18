@@ -13,7 +13,7 @@ export default async function EmployeesPage() {
   const admin = createAdminClient();
   const [emps, depts, poss] = await Promise.all([
     admin.from("employees")
-      .select("id, employee_code, first_name, last_name, employment_status, departments(name), positions(name)")
+      .select("id, employee_code, first_name, last_name, employment_status, departments!employees_department_id_fkey(name), positions(name)")
       .eq("tenant_id", ctx.tenantId).is("deleted_at", null).order("employee_code"),
     admin.from("departments").select("id, name").eq("tenant_id", ctx.tenantId).is("deleted_at", null).order("name"),
     admin.from("positions").select("id, name").eq("tenant_id", ctx.tenantId).is("deleted_at", null).order("name"),

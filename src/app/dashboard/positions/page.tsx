@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getContext } from "@/lib/auth-context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NameCodeCrud, type NCRow } from "@/components/name-code-crud";
@@ -24,9 +25,11 @@ export default async function PositionsPage() {
   }));
 
   return (
+    <Suspense>
     <NameCodeCrud
       title="ตำแหน่ง" singular="ตำแหน่ง" rows={rows}
       onCreate={createPosition} onUpdate={updatePosition} onRemove={deletePositions}
     />
+    </Suspense>
   );
 }

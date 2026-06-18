@@ -27,7 +27,7 @@ const RAIL: Cat[] = [
   { key: "overview", label: "ภาพรวม", Icon: IconDashboard, route: "/dashboard" },
   { key: "people", label: "บุคคล", Icon: IconUsers, route: "/dashboard/employees" },
   { key: "requests", label: "คำขอ", Icon: IconInbox, route: "/dashboard/leave" },
-  { key: "settings", label: "ตั้งค่า", Icon: IconSettings },
+  { key: "settings", label: "ตั้งค่า", Icon: IconSettings, route: "/dashboard/settings/company" },
 ];
 
 const SIDEBAR: Record<string, { title: string; items: Item[] }> = {
@@ -51,9 +51,9 @@ const SIDEBAR: Record<string, { title: string; items: Item[] }> = {
   settings: {
     title: "ตั้งค่า",
     items: [
-      { label: "ข้อมูลบริษัท", Icon: IconBuilding, soon: true },
-      { label: "นโยบาย", Icon: IconSettings, soon: true },
-      { label: "วันหยุด", Icon: IconLeave, soon: true },
+      { label: "ข้อมูลบริษัท", Icon: IconBuilding, href: "/dashboard/settings/company" },
+      { label: "นโยบาย", Icon: IconSettings, href: "/dashboard/settings/policies" },
+      { label: "วันหยุด", Icon: IconLeave, href: "/dashboard/settings/holidays" },
     ],
   },
 };
@@ -67,6 +67,9 @@ const TITLES: Record<string, string> = {
   "/dashboard/ot": "OT",
   "/dashboard/attendance": "ลงเวลา",
   "/dashboard/documents": "เอกสาร",
+  "/dashboard/settings/company": "ข้อมูลบริษัท",
+  "/dashboard/settings/policies": "นโยบาย",
+  "/dashboard/settings/holidays": "วันหยุด",
 };
 
 function catFromPath(path: string): string {
@@ -75,6 +78,14 @@ function catFromPath(path: string): string {
   if (/\/(leave|ot|attendance|documents)/.test(path)) return "requests";
   if (path.startsWith("/dashboard/settings")) return "settings";
   return "overview";
+}
+
+function createHref(path: string): string | null {
+  if (path === "/dashboard/employees") return "/dashboard/employees?new=1";
+  if (path === "/dashboard/departments") return "/dashboard/departments?new=1";
+  if (path === "/dashboard/positions") return "/dashboard/positions?new=1";
+  if (path === "/dashboard/settings/holidays") return "/dashboard/settings/holidays?new=1";
+  return null;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -127,6 +138,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const title = TITLES[pathname] ?? "ภาพรวม";
   const sidebar = SIDEBAR[cat];
   const isNavigating = !!pendingHref && pendingHref !== pathname;
+  const createTarget = createHref(pathname);
 
   function startNavigation(href: string, nextCat?: string) {
     if (nextCat) setCat(nextCat);
@@ -288,7 +300,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="nav-right">
             <button className="btn-icon mob-only" onClick={() => setCmdk(true)} aria-label="ค้นหา"><IconSearch className="" /></button>
-            <button className="btn btn-primary"><IconPlus className="" /> <span className="mob-hide">สร้าง</span></button>
+            {createTarget ? (
+              <Link className="btn btn-primary" href={createTarget} prefetch>
+                <IconPlus className="" /> <span className="mob-hide">สร้าง</span>
+              </Link>
+            ) : (
+              <button className="btn btn-primary" onClick={() => setCmdk(true)}>
+                <IconPlus className="" /> <span className="mob-hide">สร้าง</span>
+              </button>
+            )}
             <button className="btn-icon" aria-label="การแจ้งเตือน" title="การแจ้งเตือน">
               <IconBell className="" />
               <span className="nav-badge">2</span>
@@ -333,7 +353,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="menu-sep" />
                     <div style={{ padding: 6 }}>
                       <button className="menu-item"><IconUser className="" /> โปรไฟล์ของฉัน</button>
-                      <button className="menu-item" onClick={() => router.push("/dashboard")}><IconSettings className="" /> ตั้งค่าบัญชี</button>
+                      <button className="menu-item" onClick={() => router.push("/dashboard/settings/company")}><IconSettings className="" /> ตั้งค่าบัญชี</button>
                       <div className="menu-sep" />
                       <button className="menu-item danger" onClick={logout}><IconLogout className="" /> ออกจากระบบ</button>
                     </div>

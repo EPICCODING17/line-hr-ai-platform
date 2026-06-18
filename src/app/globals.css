@@ -151,7 +151,7 @@ table,.tabular{font-variant-numeric:tabular-nums;}
 /* ============================================================ Reusable bits ============================================================ */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:calc(var(--u)*2);height:var(--ctrl-h);
   padding:0 calc(var(--u)*4);border-radius:var(--radius);font-weight:500;font-size:.92em;white-space:nowrap;border:none;background:none;color:inherit;
-  transition:background .15s,transform .1s,box-shadow .15s,border-color .15s;}
+  text-decoration:none;transition:background .15s,transform .1s,box-shadow .15s,border-color .15s;}
 .btn:active{transform:translateY(1px);}
 .btn-primary{background:var(--primary);color:var(--primary-fg);box-shadow:var(--shadow-sm);}
 .btn-primary:hover{background:var(--primary-hover);box-shadow:0 8px 18px -10px var(--primary);transform:translateY(-1px);}

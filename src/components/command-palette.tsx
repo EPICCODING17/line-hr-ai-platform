@@ -8,6 +8,7 @@ import { THEME_LABEL, type Theme } from "@/lib/theme";
 import {
   IconDashboard, IconUsers, IconLeave, IconClock, IconCheckin, IconDocument,
   IconSettings, IconPlus, IconLogout, IconSun, IconMoon, IconMoonStars, IconSearch,
+  IconBuilding, IconBadge,
 } from "@/components/icons";
 
 type Cmd = {
@@ -29,17 +30,23 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const listRef = useRef<HTMLDivElement>(null);
 
   const go = (href: string) => { onClose(); router.push(href); };
-  const soon = (name: string) => { onClose(); alert(`${name} — เร็วๆ นี้`); };
 
   const commands: Cmd[] = useMemo(() => [
     { id: "overview", group: "เมนู", label: "ภาพรวม", keywords: "dashboard home หน้าหลัก", Icon: IconDashboard, run: () => go("/dashboard") },
     { id: "employees", group: "เมนู", label: "พนักงาน", keywords: "employee staff คน", Icon: IconUsers, run: () => go("/dashboard/employees") },
-    { id: "leave", group: "เมนู", label: "การลา", keywords: "leave ลาป่วย ลาพักร้อน", Icon: IconLeave, run: () => soon("การลา") },
-    { id: "ot", group: "เมนู", label: "OT", keywords: "overtime ทำงานล่วงเวลา", Icon: IconClock, run: () => soon("OT") },
-    { id: "attendance", group: "เมนู", label: "ลงเวลา", keywords: "attendance checkin เช็คอิน", Icon: IconCheckin, run: () => soon("ลงเวลา") },
-    { id: "documents", group: "เมนู", label: "เอกสาร", keywords: "document หนังสือรับรอง", Icon: IconDocument, run: () => soon("เอกสาร") },
-    { id: "settings", group: "เมนู", label: "ตั้งค่า", keywords: "settings config", Icon: IconSettings, run: () => soon("ตั้งค่า") },
+    { id: "departments", group: "เมนู", label: "แผนก", keywords: "department team", Icon: IconBuilding, run: () => go("/dashboard/departments") },
+    { id: "positions", group: "เมนู", label: "ตำแหน่ง", keywords: "position job title", Icon: IconBadge, run: () => go("/dashboard/positions") },
+    { id: "leave", group: "เมนู", label: "การลา", keywords: "leave ลาป่วย ลาพักร้อน", Icon: IconLeave, run: () => go("/dashboard/leave") },
+    { id: "ot", group: "เมนู", label: "OT", keywords: "overtime ทำงานล่วงเวลา", Icon: IconClock, run: () => go("/dashboard/ot") },
+    { id: "attendance", group: "เมนู", label: "ลงเวลา", keywords: "attendance checkin เช็คอิน", Icon: IconCheckin, run: () => go("/dashboard/attendance") },
+    { id: "documents", group: "เมนู", label: "เอกสาร", keywords: "document หนังสือรับรอง", Icon: IconDocument, run: () => go("/dashboard/documents") },
+    { id: "settings", group: "เมนู", label: "ตั้งค่า", keywords: "settings config company", Icon: IconSettings, run: () => go("/dashboard/settings/company") },
+    { id: "settings-policies", group: "ตั้งค่า", label: "นโยบาย", keywords: "policy leave ot attendance document", Icon: IconSettings, run: () => go("/dashboard/settings/policies") },
+    { id: "settings-holidays", group: "ตั้งค่า", label: "วันหยุด", keywords: "holiday calendar", Icon: IconLeave, run: () => go("/dashboard/settings/holidays") },
     { id: "add-emp", group: "การกระทำ", label: "เพิ่มพนักงาน", keywords: "new employee สร้าง", Icon: IconPlus, run: () => go("/dashboard/employees?new=1") },
+    { id: "add-dept", group: "การกระทำ", label: "เพิ่มแผนก", keywords: "new department สร้าง", Icon: IconPlus, run: () => go("/dashboard/departments?new=1") },
+    { id: "add-position", group: "การกระทำ", label: "เพิ่มตำแหน่ง", keywords: "new position สร้าง", Icon: IconPlus, run: () => go("/dashboard/positions?new=1") },
+    { id: "add-holiday", group: "การกระทำ", label: "เพิ่มวันหยุด", keywords: "new holiday สร้าง", Icon: IconPlus, run: () => go("/dashboard/settings/holidays?new=1") },
     { id: "theme-light", group: "ธีม", label: `ธีม: ${THEME_LABEL.light}`, keywords: "theme light สว่าง", Icon: IconSun, run: () => { setTheme("light" as Theme); onClose(); } },
     { id: "theme-dark", group: "ธีม", label: `ธีม: ${THEME_LABEL.dark}`, keywords: "theme dark มืด", Icon: IconMoon, run: () => { setTheme("dark" as Theme); onClose(); } },
     { id: "theme-dark2", group: "ธีม", label: `ธีม: ${THEME_LABEL.dark2}`, keywords: "theme dark2 มืด2", Icon: IconMoonStars, run: () => { setTheme("dark2" as Theme); onClose(); } },
