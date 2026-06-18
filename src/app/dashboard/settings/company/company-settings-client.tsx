@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { IconBuilding, IconCheckin, IconDocument, IconSettings } from "@/components/icons";
+import { IconBuilding, IconCheckin, IconDocument, IconSettings, IconUsers } from "@/components/icons";
 import { updateCompanySettings, type CompanySettingsInput } from "../actions";
 
 export type CompanyTenantInfo = {
@@ -32,6 +32,13 @@ export type CompanyLineInfo = {
   updated_at: string | null;
 };
 
+export type CompanyHrContact = {
+  email: string;
+  phone: string;
+  hours: string;
+  note: string;
+};
+
 type SubscriptionInfo = {
   status: string | null;
   planName: string | null;
@@ -50,10 +57,11 @@ const DAYS = [
 ];
 
 export function CompanySettingsClient({
-  tenant, settings, line, subscription,
+  tenant, settings, hrContact, line, subscription,
 }: {
   tenant: CompanyTenantInfo;
   settings: CompanySettingsInfo;
+  hrContact: CompanyHrContact;
   line: CompanyLineInfo | null;
   subscription: SubscriptionInfo;
 }) {
@@ -66,6 +74,10 @@ export function CompanySettingsClient({
     timezone: settings.timezone,
     locale: settings.locale,
     workweek: settings.workweek.length ? settings.workweek : [1, 2, 3, 4, 5],
+    hr_email: hrContact.email,
+    hr_phone: hrContact.phone,
+    hr_hours: hrContact.hours,
+    hr_note: hrContact.note,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +183,33 @@ export function CompanySettingsClient({
                 </div>
               </div>
 
+              <div style={{ marginTop: "calc(var(--gap) * 1.25)", paddingTop: "var(--gap)", borderTop: "1px solid var(--border)" }}>
+                <div className="panel-head" style={{ marginBottom: "var(--gap)" }}>
+                  <span className="pt">ข้อมูลติดต่อ HR ใน LINE</span>
+                  <span className="chip chip-muted">ใช้กับปุ่ม ติดต่อ HR</span>
+                </div>
+                <div className="form-grid">
+                  <div>
+                    <label className="field-label">อีเมล HR</label>
+                    <input className="input" type="email" value={form.hr_email ?? ""} onChange={set("hr_email")} placeholder="hr@company.co" />
+                  </div>
+                  <div>
+                    <label className="field-label">โทรศัพท์</label>
+                    <input className="input" value={form.hr_phone ?? ""} onChange={set("hr_phone")} placeholder="ต่อ 100" />
+                  </div>
+                </div>
+                <div className="form-grid" style={{ marginTop: "var(--gap)" }}>
+                  <div>
+                    <label className="field-label">เวลาทำการ</label>
+                    <input className="input" value={form.hr_hours ?? ""} onChange={set("hr_hours")} placeholder="จ–ศ 9:00–18:00" />
+                  </div>
+                  <div>
+                    <label className="field-label">หมายเหตุสั้นๆ</label>
+                    <input className="input" value={form.hr_note ?? ""} onChange={set("hr_note")} placeholder="เช่น เคสเร่งด่วนโทรฝ่ายบุคคล" />
+                  </div>
+                </div>
+              </div>
+
               {error && <p className="helper err" style={{ marginTop: 10 }}>{error}</p>}
               <div className="modal-foot" style={{ paddingInline: 0, paddingBottom: 0, borderTop: "none" }}>
                 <Button type="submit" loading={saving}>บันทึกข้อมูลบริษัท</Button>
@@ -198,6 +237,13 @@ export function CompanySettingsClient({
             title="เวลาทำงาน"
             main={`${settings.timezone} / ${settings.locale}`}
             detail={`ทำงาน ${form.workweek?.length ?? 0} วันต่อสัปดาห์`}
+          />
+          <InfoCard
+            Icon={IconUsers}
+            title="ติดต่อ HR"
+            main={form.hr_email || "hr@demo.co"}
+            detail={`${form.hr_phone || "ต่อ 100"} · ${form.hr_hours || "จ–ศ 9:00–18:00"}`}
+            ok
           />
           <InfoCard
             Icon={IconSettings}

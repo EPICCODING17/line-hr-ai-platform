@@ -1,6 +1,12 @@
 import { getContext } from "@/lib/auth-context";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { CompanySettingsClient, type CompanyLineInfo, type CompanySettingsInfo, type CompanyTenantInfo } from "./company-settings-client";
+import {
+  CompanySettingsClient,
+  type CompanyHrContact,
+  type CompanyLineInfo,
+  type CompanySettingsInfo,
+  type CompanyTenantInfo,
+} from "./company-settings-client";
 
 type PlanJoin = { name?: string | null; code?: string | null } | { name?: string | null; code?: string | null }[] | null;
 const onePlan = (j: PlanJoin) => Array.isArray(j) ? j[0] ?? null : j;
@@ -16,7 +22,7 @@ export default async function CompanySettingsPage() {
       .eq("id", ctx.tenantId)
       .maybeSingle(),
     admin.from("tenant_settings")
-      .select("timezone, locale, workweek, theme")
+      .select("timezone, locale, workweek, theme, branding")
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle(),
     admin.from("line_accounts")
@@ -45,6 +51,20 @@ export default async function CompanySettingsPage() {
     theme: (settingsRes.data?.theme as string | null) ?? "light",
   };
 
+  const branding = settingsRes.data?.branding;
+  const rawContact = branding && typeof branding === "object" && !Array.isArray(branding)
+    ? (branding as { hr_contact?: unknown }).hr_contact
+    : null;
+  const contactRecord = rawContact && typeof rawContact === "object" && !Array.isArray(rawContact)
+    ? rawContact as Record<string, unknown>
+    : {};
+  const hrContact: CompanyHrContact = {
+    email: typeof contactRecord.email === "string" ? contactRecord.email : "hr@demo.co",
+    phone: typeof contactRecord.phone === "string" ? contactRecord.phone : "ต่อ 100",
+    hours: typeof contactRecord.hours === "string" ? contactRecord.hours : "จ–ศ 9:00–18:00",
+    note: typeof contactRecord.note === "string" ? contactRecord.note : "",
+  };
+
   const plan = onePlan(subRes.data?.plans as PlanJoin);
   const line = lineRes.data ? {
     basic_id: (lineRes.data.basic_id as string | null) ?? null,
@@ -58,6 +78,7 @@ export default async function CompanySettingsPage() {
     <CompanySettingsClient
       tenant={tenant}
       settings={settings}
+      hrContact={hrContact}
       line={line}
       subscription={{
         status: (subRes.data?.status as string | null) ?? null,

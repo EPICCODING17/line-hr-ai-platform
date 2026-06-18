@@ -8,6 +8,20 @@ const FAINT = "#9aa1ab";
 const BORDER = "#eceef3";
 const PRIMARY = "#3c8cf3";
 
+export type HrContact = {
+  email?: string | null;
+  phone?: string | null;
+  hours?: string | null;
+  note?: string | null;
+};
+
+const DEFAULT_HR_CONTACT: { email: string; phone: string; hours: string; note: string | null } = {
+  email: "hr@demo.co",
+  phone: "ต่อ 100",
+  hours: "จ–ศ 9:00–18:00",
+  note: null,
+};
+
 type StatusStyle = { label: string; fg: string; bg: string };
 const STATUS: Record<string, StatusStyle> = {
   pending: { label: "รออนุมัติ", fg: "#b06f00", bg: "#fdf1dd" },
@@ -191,12 +205,31 @@ export function statusListFlex(name: string, items: Array<{
     contents: [
       {
         type: "box",
-        layout: "vertical",
+        layout: "horizontal",
         backgroundColor: PRIMARY,
         paddingAll: "18px",
+        spacing: "md",
         contents: [
-          { type: "text", text: "คำขอล่าสุดของคุณ", color: "#ffffff", weight: "bold", size: "lg" },
-          { type: "text", text: name, color: "#e8f1fe", size: "xs" },
+          {
+            type: "box",
+            layout: "vertical",
+            flex: 0,
+            width: "34px",
+            height: "34px",
+            backgroundColor: "#ffffff33",
+            cornerRadius: "10px",
+            justifyContent: "center",
+            contents: [{ type: "text", text: "📋", size: "lg", align: "center" }],
+          },
+          {
+            type: "box",
+            layout: "vertical",
+            justifyContent: "center",
+            contents: [
+              { type: "text", text: "คำขอล่าสุดของคุณ", color: "#ffffff", weight: "bold", size: "lg" },
+              { type: "text", text: name, color: "#e8f1fe", size: "xs" },
+            ],
+          },
         ],
       },
       { type: "box", layout: "vertical", paddingAll: "18px", spacing: "none", contents: rows },
@@ -259,7 +292,13 @@ export function comingSoonFlex(feature: string, emoji: string): LineMessage {
   });
 }
 
-export function contactFlex(): LineMessage {
+export function contactFlex(contact: HrContact = {}): LineMessage {
+  const c = {
+    email: contact.email?.trim() || DEFAULT_HR_CONTACT.email,
+    phone: contact.phone?.trim() || DEFAULT_HR_CONTACT.phone,
+    hours: contact.hours?.trim() || DEFAULT_HR_CONTACT.hours,
+    note: contact.note?.trim() || DEFAULT_HR_CONTACT.note,
+  };
   const body = {
     type: "box",
     layout: "vertical",
@@ -273,9 +312,10 @@ export function contactFlex(): LineMessage {
       },
       { type: "text", text: "ติดต่อฝ่ายบุคคล", weight: "bold", size: "lg", color: INK, margin: "md" },
       { type: "separator", color: BORDER, margin: "md" },
-      row("อีเมล", "hr@demo.co"),
-      row("โทรศัพท์", "ต่อ 100"),
-      row("เวลาทำการ", "จ–ศ 9:00–18:00"),
+      row("อีเมล", c.email),
+      row("โทรศัพท์", c.phone),
+      row("เวลาทำการ", c.hours),
+      ...(c.note ? [{ type: "text", text: c.note, size: "xs", color: MUTED, wrap: true, margin: "md" }] : []),
     ],
   };
   return flex("ติดต่อฝ่ายบุคคล (HR)", bubble(body));

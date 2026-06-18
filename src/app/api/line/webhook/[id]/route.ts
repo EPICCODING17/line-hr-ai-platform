@@ -4,7 +4,7 @@ import { decryptSecret } from "@/lib/crypto";
 import { verifyLineSignature } from "@/lib/line/verify";
 import { replyMessage, textMsg, startLoading, type LineMessage } from "@/lib/line/client";
 import { isChatPostback, startChat, onChatPostback, maybeCollectNote, type CfCtx } from "@/lib/line/chatflow";
-import { infoFlex, contactFlex, welcomeFlex, statusListFlex } from "@/lib/line/flex";
+import { infoFlex, contactFlex, welcomeFlex, statusListFlex, type HrContact } from "@/lib/line/flex";
 import { actOnLeaveRequest, actOnOtRequest, actOnDocRequest } from "@/lib/approval";
 import { otRateLabel } from "@/lib/ot";
 import { classifyIntent, aiEnabled, type IntentResult } from "@/lib/ai/intent";
@@ -333,10 +333,28 @@ async function actionReply(
       })];
     }
     case "contact":
-      return [contactFlex()];
+      return [contactFlex(await getHrContact(admin, ctx.tenantId))];
     default:
       return [textMsg("เลือกบริการจากเมนูด้านล่างได้เลย")];
   }
+}
+
+async function getHrContact(admin: ReturnType<typeof createAdminClient>, tenantId: string): Promise<HrContact> {
+  const { data } = await admin.from("tenant_settings")
+    .select("branding")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const branding = data?.branding;
+  if (!branding || typeof branding !== "object" || Array.isArray(branding)) return {};
+  const contact = (branding as { hr_contact?: unknown }).hr_contact;
+  if (!contact || typeof contact !== "object" || Array.isArray(contact)) return {};
+  const c = contact as Record<string, unknown>;
+  return {
+    email: typeof c.email === "string" ? c.email : null,
+    phone: typeof c.phone === "string" ? c.phone : null,
+    hours: typeof c.hours === "string" ? c.hours : null,
+    note: typeof c.note === "string" ? c.note : null,
+  };
 }
 
 type StatusItem = { title: string; sub: string; status: string; requestNo: string; createdAt: string };

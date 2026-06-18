@@ -29,6 +29,10 @@ const CompanySchema = z.object({
   timezone: z.string().trim().min(1).default("Asia/Bangkok"),
   locale: z.string().trim().min(2).default("th"),
   workweek: z.array(z.coerce.number().int().min(1).max(7)).min(1, "เลือกวันทำงานอย่างน้อย 1 วัน"),
+  hr_email: z.string().trim().email("อีเมล HR ไม่ถูกต้อง").optional().or(z.literal("")).transform((v) => (v ? v : null)),
+  hr_phone: emptyToNull,
+  hr_hours: emptyToNull,
+  hr_note: emptyToNull,
 });
 
 export type CompanySettingsInput = z.input<typeof CompanySchema>;
@@ -58,12 +62,31 @@ export async function updateCompanySettings(input: CompanySettingsInput): Promis
     timezone: v.timezone,
     locale: v.locale,
     workweek: [...new Set(v.workweek)].sort((a, b) => a - b),
+    branding: {
+      ...await currentBranding(admin, ctx.tenantId),
+      hr_contact: {
+        email: v.hr_email ?? "hr@demo.co",
+        phone: v.hr_phone ?? "ต่อ 100",
+        hours: v.hr_hours ?? "จ–ศ 9:00–18:00",
+        note: v.hr_note,
+      },
+    },
     updated_at: new Date().toISOString(),
   }, { onConflict: "tenant_id" });
 
   if (settings.error) return { ok: false, error: settings.error.message };
   revalidatePath("/dashboard/settings/company");
   return { ok: true };
+}
+
+async function currentBranding(admin: ReturnType<typeof createAdminClient>, tenantId: string): Promise<Record<string, unknown>> {
+  const { data } = await admin.from("tenant_settings")
+    .select("branding")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const branding = data?.branding;
+  if (!branding || typeof branding !== "object" || Array.isArray(branding)) return {};
+  return branding as Record<string, unknown>;
 }
 
 const HolidaySchema = z.object({
