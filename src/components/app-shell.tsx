@@ -11,7 +11,7 @@ import {
 import {
   IconDashboard, IconUsers, IconInbox, IconSettings, IconLeave, IconClock,
   IconCheckin, IconDocument, IconBuilding, IconBadge, IconPanelLeft, IconChevronLeft,
-  IconPlus, IconBell, IconSearch, IconMenu, IconSun, IconMoon, IconMoonStars,
+  IconBell, IconSearch, IconMenu, IconSun, IconMoon, IconMoonStars,
   IconPalette, IconSliders, IconUser, IconLogout,
 } from "@/components/icons";
 
@@ -80,14 +80,6 @@ function catFromPath(path: string): string {
   return "overview";
 }
 
-function createHref(path: string): string | null {
-  if (path === "/dashboard/employees") return "/dashboard/employees?new=1";
-  if (path === "/dashboard/departments") return "/dashboard/departments?new=1";
-  if (path === "/dashboard/positions") return "/dashboard/positions?new=1";
-  if (path === "/dashboard/settings/holidays") return "/dashboard/settings/holidays?new=1";
-  return null;
-}
-
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -138,7 +130,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const title = TITLES[pathname] ?? "ภาพรวม";
   const sidebar = SIDEBAR[cat];
   const isNavigating = !!pendingHref && pendingHref !== pathname;
-  const createTarget = createHref(pathname);
 
   function startNavigation(href: string, nextCat?: string) {
     if (nextCat) setCat(nextCat);
@@ -300,15 +291,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="nav-right">
             <button className="btn-icon mob-only" onClick={() => setCmdk(true)} aria-label="ค้นหา"><IconSearch className="" /></button>
-            {createTarget ? (
-              <Link className="btn btn-primary" href={createTarget} prefetch>
-                <IconPlus className="" /> <span className="mob-hide">สร้าง</span>
-              </Link>
-            ) : (
-              <button className="btn btn-primary" onClick={() => setCmdk(true)}>
-                <IconPlus className="" /> <span className="mob-hide">สร้าง</span>
-              </button>
-            )}
             <button className="btn-icon" aria-label="การแจ้งเตือน" title="การแจ้งเตือน">
               <IconBell className="" />
               <span className="nav-badge">2</span>
